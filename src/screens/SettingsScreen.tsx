@@ -1,12 +1,17 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import {
   BookOpen,
   CalendarCheck2,
+  Download,
+  FileJson2,
+  FileSpreadsheet,
   Leaf,
   Pencil,
   Plus,
   Search,
+  ShieldCheck,
+  Upload,
   Wrench,
 } from 'lucide-react'
 import { Modal } from '../components/Modal'
@@ -25,6 +30,17 @@ import {
   type CropPreset,
 } from '../lib/cropLibrary'
 import { getSharedCropThresholds } from '../lib/thresholds'
+import {
+  backupFileName,
+  createLogsCsv,
+  createReservoirBackup,
+  logsCsvFileName,
+  parseReservoirBackup,
+  restoreReservoirBackup,
+  savePreparedExport,
+  type PreparedExport,
+  type ReservoirBackup,
+} from '../lib/backup'
 
 interface SettingsScreenProps {
   reservoirCropIds: number[]
@@ -73,6 +89,12 @@ export default function SettingsScreen({
   const [showTaskModal, setShowTaskModal] = useState(false)
   const [showLibraryModal, setShowLibraryModal] = useState(false)
   const [librarySearch, setLibrarySearch] = useState('')
+  const [preparedExport, setPreparedExport] = useState<PreparedExport | null>(null)
+  const [pendingBackup, setPendingBackup] = useState<ReservoirBackup | null>(null)
+  const [dataMessage, setDataMessage] = useState<string | null>(null)
+  const [dataError, setDataError] = useState<string | null>(null)
+  const [dataBusy, setDataBusy] = useState(false)
+  const backupInputRef = useRef<HTMLInputElement>(null)
 
   const filteredPresets = useMemo(() => {
     const query = librarySearch.trim().toLocaleLowerCase()
@@ -178,6 +200,99 @@ export default function SettingsScreen({
     })
     setTaskDraft({ title: '', interval_days: 14 })
     setShowTaskModal(false)
+  }
+
+  const prepareFullBackup = async () => {
+    setDataBusy(true)
+    setDataError(null)
+    setDataMessage(null)
+    try {
+      const now = new Date()
+      const backup = await createReservoirBackup(reservoirCropIds, now)
+      setPreparedExport({
+        fileName: backupFileName(now),
+        mimeType: 'application/json',
+        contents: JSON.stringify(backup, null, 2),
+        description: 'Hydroponic reservoir backup',
+      })
+    } catch (reason: unknown) {
+      setDataError(reason instanceof Error ? reason.message : 'Could not prepare backup.')
+    } finally {
+      setDataBusy(false)
+    }
+  }
+
+  const prepareLogsCsv = async () => {
+    setDataBusy(true)
+    setDataError(null)
+    setDataMessage(null)
+    try {
+      const now = new Date()
+      const logs = await db.logs.orderBy('timestamp').toArray()
+      setPreparedExport({
+        fileName: logsCsvFileName(now),
+        mimeType: 'text/csv;charset=utf-8',
+        contents: createLogsCsv(logs),
+        description: 'Hydroponic reservoir readings',
+      })
+    } catch (reason: unknown) {
+      setDataError(reason instanceof Error ? reason.message : 'Could not prepare CSV.')
+    } finally {
+      setDataBusy(false)
+    }
+  }
+
+  const saveExport = async () => {
+    if (!preparedExport) return
+    try {
+      const result = await savePreparedExport(preparedExport)
+      if (result === 'cancelled') return
+      setDataMessage(
+        result === 'shared'
+          ? 'File shared successfully.'
+          : 'File downloaded successfully.',
+      )
+      setPreparedExport(null)
+    } catch (reason: unknown) {
+      setDataError(reason instanceof Error ? reason.message : 'Could not save file.')
+      setPreparedExport(null)
+    }
+  }
+
+  const chooseBackup = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const input = event.currentTarget
+    const file = input.files?.[0]
+    input.value = ''
+    if (!file) return
+
+    setDataBusy(true)
+    setDataError(null)
+    setDataMessage(null)
+    try {
+      setPendingBackup(parseReservoirBackup(await file.text()))
+    } catch (reason: unknown) {
+      setDataError(
+        reason instanceof Error ? reason.message : 'Could not read backup file.',
+      )
+    } finally {
+      setDataBusy(false)
+    }
+  }
+
+  const confirmRestore = async () => {
+    if (!pendingBackup) return
+    setDataBusy(true)
+    setDataError(null)
+    try {
+      const selectedIds = await restoreReservoirBackup(pendingBackup)
+      onReservoirCropsChange(selectedIds)
+      setPendingBackup(null)
+      setDataMessage('Backup restored successfully on this device.')
+    } catch (reason: unknown) {
+      setDataError(reason instanceof Error ? reason.message : 'Could not restore backup.')
+    } finally {
+      setDataBusy(false)
+    }
   }
 
   return (
@@ -312,6 +427,64 @@ export default function SettingsScreen({
         </button>
       </section>
 
+      <section className="settings-section">
+        <div className="backup-heading">
+          <div>
+            <h2>Backup & data</h2>
+            <p className="settings-helper">
+              Save to Files or iCloud so your local records can be recovered.
+            </p>
+          </div>
+          <ShieldCheck size={25} aria-hidden="true" />
+        </div>
+        <div className="backup-actions">
+          <button
+            type="button"
+            disabled={dataBusy}
+            onClick={prepareFullBackup}
+          >
+            <FileJson2 size={21} aria-hidden="true" />
+            <span>
+              <strong>Full JSON backup</strong>
+              <small>All crops, logs, tasks, and settings</small>
+            </span>
+            <Download size={18} aria-hidden="true" />
+          </button>
+          <button
+            type="button"
+            disabled={dataBusy}
+            onClick={prepareLogsCsv}
+          >
+            <FileSpreadsheet size={21} aria-hidden="true" />
+            <span>
+              <strong>Readings CSV</strong>
+              <small>Open your history in a spreadsheet</small>
+            </span>
+            <Download size={18} aria-hidden="true" />
+          </button>
+          <button
+            type="button"
+            disabled={dataBusy}
+            onClick={() => backupInputRef.current?.click()}
+          >
+            <Upload size={21} aria-hidden="true" />
+            <span>
+              <strong>Restore JSON backup</strong>
+              <small>Validate a file before replacing local data</small>
+            </span>
+          </button>
+        </div>
+        <input
+          ref={backupInputRef}
+          className="hidden-file-input"
+          type="file"
+          accept=".json,application/json"
+          onChange={chooseBackup}
+        />
+        {dataMessage ? <p className="data-message" role="status">{dataMessage}</p> : null}
+        {dataError ? <p className="data-error" role="alert">{dataError}</p> : null}
+      </section>
+
       {cropDraft ? (
         <Modal
           title={editingCropId ? 'Edit crop' : 'Add custom crop'}
@@ -439,6 +612,57 @@ export default function SettingsScreen({
             {!filteredPresets.length ? (
               <p className="crop-library-empty">No matching crop preset.</p>
             ) : null}
+          </div>
+        </Modal>
+      ) : null}
+
+      {preparedExport ? (
+        <Modal title="File ready" onClose={() => setPreparedExport(null)}>
+          <div className="backup-ready">
+            <FileJson2 size={34} aria-hidden="true" />
+            <p>
+              <strong>{preparedExport.fileName}</strong>
+              Choose Save or share, then store the file in Files, iCloud Drive,
+              or another location you control.
+            </p>
+          </div>
+          <button type="button" className="primary-button" onClick={saveExport}>
+            <Download size={19} aria-hidden="true" /> Save or share file
+          </button>
+        </Modal>
+      ) : null}
+
+      {pendingBackup ? (
+        <Modal title="Replace local data?" onClose={() => setPendingBackup(null)}>
+          <div className="restore-warning" role="alert">
+            This will replace every crop, reading, and maintenance task currently
+            stored on this device.
+          </div>
+          <dl className="backup-summary">
+            <div><dt>Crops</dt><dd>{pendingBackup.crops.length}</dd></div>
+            <div><dt>Readings</dt><dd>{pendingBackup.logs.length}</dd></div>
+            <div><dt>Tasks</dt><dd>{pendingBackup.tasks.length}</dd></div>
+            <div>
+              <dt>Exported</dt>
+              <dd>{new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' }).format(new Date(pendingBackup.exported_at))}</dd>
+            </div>
+          </dl>
+          <div className="restore-actions">
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={() => setPendingBackup(null)}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="danger-button"
+              disabled={dataBusy}
+              onClick={confirmRestore}
+            >
+              Restore and replace
+            </button>
           </div>
         </Modal>
       ) : null}

@@ -11,6 +11,7 @@ An iPhone-first, offline PWA for monitoring one hydroponic reservoir. All behavi
 - pH and EC charts for 7 days, 30 days, 3 months, 6 months, or all history
 - Multi-select reservoir crops and editable crop target ranges
 - Offline crop preset library sourced from Oklahoma State University Extension
+- Full JSON backup/restore and spreadsheet-ready CSV reading export
 - Recurring maintenance tasks with deterministic due dates
 - Dexie/IndexedDB persistence and Workbox precaching for offline use
 - iOS standalone metadata, safe-area layout, and generated PWA icons
@@ -39,6 +40,20 @@ The bundled presets are static copies of the ranged crop values in Table 2 of
 They work without a network connection. Presets are starting points rather than
 predictions, and each added crop remains editable for a particular cultivar,
 growth stage, system, or water source. Custom crops remain available.
+
+## Backup and restore
+
+Settings includes a **Backup & data** section:
+
+- **Full JSON backup** contains crops, readings, maintenance tasks, and selected
+  reservoir crops. Restore validates the complete versioned file and shows a
+  confirmation summary before replacing local data.
+- **Readings CSV** contains date, time, pH, EC, water temperature, water added,
+  and notes for spreadsheet use.
+
+On supported iPhones the app opens the Share Sheet so files can be saved to
+Files or iCloud Drive. Other browsers receive a normal file download. No backup
+is uploaded automatically and no cloud account is required by the app.
 
 ## Local development
 
@@ -79,7 +94,7 @@ npm run lint
 npm run build
 ```
 
-The tests cover the offline preset data, shared crop ranges, threshold bands, overall severity, recurring due dates, local day boundaries, one daily update, and one chart point per day.
+The tests cover backup validation and restoration, CSV escaping, offline preset data, shared crop ranges, threshold bands, recurring due dates, local day boundaries, one daily update, and one chart point per day.
 
 ## Local storage
 

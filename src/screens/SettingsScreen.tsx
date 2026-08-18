@@ -1,10 +1,12 @@
 import { useMemo, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import {
+  BookOpen,
   CalendarCheck2,
   Leaf,
   Pencil,
   Plus,
+  Search,
   Wrench,
 } from 'lucide-react'
 import { Modal } from '../components/Modal'
@@ -16,6 +18,12 @@ import {
   parseLocalDate,
   toLocalDateString,
 } from '../lib/dates'
+import {
+  CROP_LIBRARY,
+  CROP_LIBRARY_SOURCE,
+  cropsMatchPreset,
+  type CropPreset,
+} from '../lib/cropLibrary'
 import { getSharedCropThresholds } from '../lib/thresholds'
 
 interface SettingsScreenProps {
@@ -63,6 +71,16 @@ export default function SettingsScreen({
   const [editingCropId, setEditingCropId] = useState<number | null>(null)
   const [taskDraft, setTaskDraft] = useState({ title: '', interval_days: 14 })
   const [showTaskModal, setShowTaskModal] = useState(false)
+  const [showLibraryModal, setShowLibraryModal] = useState(false)
+  const [librarySearch, setLibrarySearch] = useState('')
+
+  const filteredPresets = useMemo(() => {
+    const query = librarySearch.trim().toLocaleLowerCase()
+    if (!query) return CROP_LIBRARY
+    return CROP_LIBRARY.filter((preset) =>
+      preset.name.toLocaleLowerCase().includes(query),
+    )
+  }, [librarySearch])
 
   const orderedTasks = useMemo(
     () =>
@@ -130,6 +148,25 @@ export default function SettingsScreen({
       onReservoirCropsChange([...reservoirCropIds, id])
     }
     setCropDraft(null)
+  }
+
+  const addLibraryCrop = async (preset: CropPreset) => {
+    const existing = crops.find((crop) => cropsMatchPreset(crop, preset))
+    let cropId = existing?.id
+
+    if (!cropId) {
+      const nameExists = crops.some((crop) => crop.name === preset.name)
+      cropId = await db.crops.add({
+        ...preset,
+        name: nameExists ? `${preset.name} (OSU preset)` : preset.name,
+      })
+    }
+
+    if (!reservoirCropIdSet.has(cropId)) {
+      onReservoirCropsChange([...reservoirCropIds, cropId])
+    }
+    setLibrarySearch('')
+    setShowLibraryModal(false)
   }
 
   const addTask = async () => {
@@ -218,9 +255,18 @@ export default function SettingsScreen({
             </strong>
           </div>
         </div>
-        <button type="button" className="outline-button" onClick={openNewCrop}>
-          <Plus size={20} aria-hidden="true" /> Add custom crop
-        </button>
+        <div className="settings-button-stack">
+          <button
+            type="button"
+            className="outline-button"
+            onClick={() => setShowLibraryModal(true)}
+          >
+            <BookOpen size={20} aria-hidden="true" /> Add from crop library
+          </button>
+          <button type="button" className="outline-button" onClick={openNewCrop}>
+            <Plus size={20} aria-hidden="true" /> Add custom crop
+          </button>
+        </div>
       </section>
 
       <section className="settings-section">
@@ -324,6 +370,75 @@ export default function SettingsScreen({
             <button type="button" className="primary-button" onClick={saveCrop}>
               Save crop
             </button>
+          </div>
+        </Modal>
+      ) : null}
+
+      {showLibraryModal ? (
+        <Modal
+          title="Crop library"
+          onClose={() => {
+            setLibrarySearch('')
+            setShowLibraryModal(false)
+          }}
+        >
+          <div className="crop-library-intro">
+            <p>
+              Offline starting ranges for general hydroponic crops. Add a
+              preset, then edit it if your cultivar or system needs a different
+              range.
+            </p>
+            <a
+              href={CROP_LIBRARY_SOURCE.url}
+              target="_blank"
+              rel="noreferrer"
+            >
+              Source: {CROP_LIBRARY_SOURCE.title}
+            </a>
+          </div>
+          <label className="crop-library-search">
+            <span className="sr-only">Search crop presets</span>
+            <Search size={19} aria-hidden="true" />
+            <input
+              type="search"
+              inputMode="search"
+              value={librarySearch}
+              placeholder="Search crops"
+              onChange={(event) => setLibrarySearch(event.target.value)}
+            />
+          </label>
+          <div className="crop-library-list">
+            {filteredPresets.map((preset) => {
+              const savedCrop = crops.find((crop) =>
+                cropsMatchPreset(crop, preset),
+              )
+              const isSelected = savedCrop
+                ? reservoirCropIdSet.has(savedCrop.id)
+                : false
+
+              return (
+                <article className="crop-library-row" key={preset.name}>
+                  <div>
+                    <strong>{preset.name}</strong>
+                    <span>
+                      pH {preset.target_ph_min.toFixed(1)}–{preset.target_ph_max.toFixed(1)} · EC{' '}
+                      {preset.target_ec_min.toFixed(1)}–{preset.target_ec_max.toFixed(1)}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    disabled={isSelected}
+                    aria-label={`${isSelected ? 'Selected' : 'Add'} ${preset.name} preset`}
+                    onClick={() => addLibraryCrop(preset)}
+                  >
+                    {isSelected ? 'Selected' : 'Add'}
+                  </button>
+                </article>
+              )
+            })}
+            {!filteredPresets.length ? (
+              <p className="crop-library-empty">No matching crop preset.</p>
+            ) : null}
           </div>
         </Modal>
       ) : null}

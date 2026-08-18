@@ -10,7 +10,6 @@ function makeLog(id: number, timestamp: number): ReservoirLog {
     ph: 6 + id / 10,
     ec: 1.2,
     water_temp: 21,
-    ambient_temp: 24,
     water_added_liters: 0,
     notes: '',
   }
@@ -52,7 +51,6 @@ describe('saveDailyLog', () => {
       ph: 6.1,
       ec: 1.4,
       water_temp: 21,
-      ambient_temp: 24,
       water_added_liters: 0,
       notes: 'Morning',
     }

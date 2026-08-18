@@ -4,23 +4,12 @@ import {
   getReservoirCropIds,
   setReservoirCropIds,
 } from '../lib/preferences'
+import { CROP_LIBRARY } from '../lib/cropLibrary'
 
-const DEFAULT_CROPS = [
-  {
-    name: 'Butterhead Lettuce',
-    target_ph_min: 5.8,
-    target_ph_max: 6.4,
-    target_ec_min: 1.2,
-    target_ec_max: 1.6,
-  },
-  {
-    name: 'Basil',
-    target_ph_min: 5.5,
-    target_ph_max: 6.5,
-    target_ec_min: 1.0,
-    target_ec_max: 1.6,
-  },
-]
+const DEFAULT_CROP_NAMES = new Set(['Lettuce'])
+const DEFAULT_CROPS = CROP_LIBRARY.filter((crop) =>
+  DEFAULT_CROP_NAMES.has(crop.name),
+).map((crop) => ({ ...crop }))
 
 const DEFAULT_TASKS = [
   {

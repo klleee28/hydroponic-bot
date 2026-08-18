@@ -48,12 +48,12 @@ export function getSharedCropThresholds(
   const ph = {
     minimum: phMinimum,
     maximum: phMaximum,
-    compatible: phMinimum <= phMaximum,
+    compatible: phMinimum < phMaximum,
   }
   const ec = {
     minimum: ecMinimum,
     maximum: ecMaximum,
-    compatible: ecMinimum <= ecMaximum,
+    compatible: ecMinimum < ecMaximum,
   }
 
   return { ph, ec, compatible: ph.compatible && ec.compatible }

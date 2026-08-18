@@ -28,13 +28,22 @@ interface DashboardScreenProps {
   onOpenLog: () => void
 }
 
-const ranges = [7, 14, 30] as const
+const ranges = [
+  { id: '7d', label: '7D', days: 7 },
+  { id: '30d', label: '30D', days: 30 },
+  { id: '3m', label: '3M', days: 90 },
+  { id: '6m', label: '6M', days: 180 },
+  { id: 'all', label: 'All', days: null },
+] as const
+
+type RangeId = (typeof ranges)[number]['id']
 
 export default function DashboardScreen({
   reservoirCropIds,
   onOpenLog,
 }: DashboardScreenProps) {
-  const [days, setDays] = useState<(typeof ranges)[number]>(7)
+  const [rangeId, setRangeId] = useState<RangeId>('30d')
+  const activeRange = ranges.find((range) => range.id === rangeId) ?? ranges[1]
   const cropIdsKey = reservoirCropIds.join(',')
   const selectedCrops = useLiveQuery(
     async () => {
@@ -49,12 +58,13 @@ export default function DashboardScreen({
     [],
   )
   const rawLogs = useLiveQuery(
-    () =>
-      db.logs
-        .where('timestamp')
-        .aboveOrEqual(rangeStartTimestamp(days))
-        .sortBy('timestamp'),
-    [days],
+    () => activeRange.days === null
+      ? db.logs.orderBy('timestamp').toArray()
+      : db.logs
+          .where('timestamp')
+          .aboveOrEqual(rangeStartTimestamp(activeRange.days))
+          .sortBy('timestamp'),
+    [rangeId],
     [],
   )
   const tasks = useLiveQuery(() => db.tasks.toArray(), [], [])
@@ -128,15 +138,19 @@ export default function DashboardScreen({
         }
       />
 
-      <div className="segmented-control" aria-label="Chart time range">
+      <div
+        className="segmented-control segmented-control--history"
+        aria-label="Chart time range"
+      >
         {ranges.map((range) => (
           <button
-            key={range}
+            key={range.id}
             type="button"
-            aria-pressed={days === range}
-            onClick={() => setDays(range)}
+            aria-label={`${range.label} history`}
+            aria-pressed={rangeId === range.id}
+            onClick={() => setRangeId(range.id)}
           >
-            {range} Days
+            {range.label}
           </button>
         ))}
       </div>

@@ -15,7 +15,6 @@ export interface ReservoirLog {
   ph: number
   ec: number
   water_temp: number
-  ambient_temp: number
   water_added_liters: number
   notes: string
 }

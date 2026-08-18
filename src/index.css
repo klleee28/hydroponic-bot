@@ -174,6 +174,14 @@ textarea:focus-visible {
   color: #fff;
 }
 
+.segmented-control--history {
+  grid-template-columns: repeat(5, 1fr);
+}
+
+.segmented-control--history button {
+  font-size: 0.8rem;
+}
+
 .chart-wrap {
   margin: 0 -4px 12px;
 }
@@ -537,6 +545,16 @@ textarea:focus-visible {
   touch-action: manipulation;
 }
 
+.settings-button-stack {
+  display: grid;
+  gap: 8px;
+  margin-top: 11px;
+}
+
+.settings-button-stack .outline-button {
+  margin-top: 0;
+}
+
 .primary-button {
   width: 100%;
   margin-top: 13px;
@@ -712,6 +730,105 @@ textarea:focus-visible {
 
 .range-conflict--log {
   margin: -3px 18px 14px;
+}
+
+.crop-library-intro {
+  margin-bottom: 13px;
+  color: var(--muted);
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
+.crop-library-intro p {
+  margin: 0 0 5px;
+}
+
+.crop-library-intro a {
+  color: var(--teal);
+  font-weight: 700;
+}
+
+.crop-library-search {
+  display: grid;
+  min-height: 48px;
+  grid-template-columns: 24px 1fr;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 12px;
+  padding: 0 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: 9px;
+  color: var(--muted);
+}
+
+.crop-library-search input {
+  width: 100%;
+  min-height: 44px;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font-size: 16px;
+}
+
+.crop-library-list {
+  overflow: hidden;
+  border: 1px solid var(--line-strong);
+  border-radius: 10px;
+}
+
+.crop-library-row {
+  display: grid;
+  min-height: 66px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 10px 9px 13px;
+  border-bottom: 1px solid var(--line);
+}
+
+.crop-library-row:last-child {
+  border-bottom: 0;
+}
+
+.crop-library-row > div {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+}
+
+.crop-library-row strong {
+  font-size: 0.9rem;
+}
+
+.crop-library-row span {
+  color: var(--muted);
+  font-size: 0.7rem;
+}
+
+.crop-library-row button {
+  min-width: 70px;
+  min-height: 42px;
+  padding: 0 10px;
+  border: 1px solid var(--teal);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--teal);
+  font-size: 0.75rem;
+  font-weight: 740;
+}
+
+.crop-library-row button:disabled {
+  border-color: var(--line-strong);
+  background: var(--surface-subtle);
+  color: var(--muted);
+}
+
+.crop-library-empty {
+  margin: 0;
+  padding: 24px;
+  color: var(--muted);
+  font-size: 0.82rem;
+  text-align: center;
 }
 
 .settings-row {

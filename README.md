@@ -4,12 +4,13 @@ An iPhone-first, offline PWA for monitoring one hydroponic reservoir. All behavi
 
 ## Features
 
-- Fast daily logging with large pH, EC, temperature, and water steppers
+- Fast daily logging with large pH, EC, water-temperature, and water steppers
 - One reservoir reading per local day; later saves update that day in place
 - Automatic prefill from today's reading or the most recent prior log
 - Green, amber, and red shared-threshold feedback while values are adjusted
-- pH and EC charts for the last 7, 14, or 30 days, with one point per day
+- pH and EC charts for 7 days, 30 days, 3 months, 6 months, or all history
 - Multi-select reservoir crops and editable crop target ranges
+- Offline crop preset library sourced from Oklahoma State University Extension
 - Recurring maintenance tasks with deterministic due dates
 - Dexie/IndexedDB persistence and Workbox precaching for offline use
 - iOS standalone metadata, safe-area layout, and generated PWA icons
@@ -30,6 +31,14 @@ For the resulting shared range `[minimum, maximum]`:
 - **Green:** value is in the remaining middle 80%.
 
 No historical trend, inference, or prediction changes this result.
+
+## Offline crop library
+
+The bundled presets are static copies of the ranged crop values in Table 2 of
+[Oklahoma State University Extension HLA-6722](https://extension.okstate.edu/fact-sheets/electrical-conductivity-and-ph-guide-for-hydroponics).
+They work without a network connection. Presets are starting points rather than
+predictions, and each added crop remains editable for a particular cultivar,
+growth stage, system, or water source. Custom crops remain available.
 
 ## Local development
 
@@ -70,7 +79,7 @@ npm run lint
 npm run build
 ```
 
-The tests cover shared crop ranges, threshold bands, overall severity, recurring due dates, local day boundaries, and one chart point per day.
+The tests cover the offline preset data, shared crop ranges, threshold bands, overall severity, recurring due dates, local day boundaries, one daily update, and one chart point per day.
 
 ## Local storage
 

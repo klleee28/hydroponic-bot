@@ -3,16 +3,16 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { CheckCircle2 } from 'lucide-react'
 import { NumericStepper } from '../components/NumericStepper'
 import { ScreenHeader } from '../components/ScreenHeader'
-import { db, type Crop, type ReservoirLog } from '../db/database'
+import { db, type Crop } from '../db/database'
 import { getLocalDayBounds } from '../lib/dates'
-import { saveDailyLog } from '../lib/logs'
+import { saveDailyLog, type ReservoirLogDraft } from '../lib/logs'
 import { evaluateThreshold, getSharedCropThresholds } from '../lib/thresholds'
 
 interface LogScreenProps {
   reservoirCropIds: number[]
 }
 
-type LogForm = Omit<ReservoirLog, 'id' | 'timestamp'>
+type LogForm = ReservoirLogDraft
 
 function midpoint(minimum: number, maximum: number, decimals: number): number {
   return Number(((minimum + maximum) / 2).toFixed(decimals))
@@ -60,7 +60,6 @@ export default function LogScreen({ reservoirCropIds }: LogScreenProps) {
             ph: prefillLog.ph,
             ec: prefillLog.ec,
             water_temp: prefillLog.water_temp,
-            ambient_temp: prefillLog.ambient_temp,
             water_added_liters: prefillLog.water_added_liters,
             notes: logState.todayLog ? prefillLog.notes : '',
           }
@@ -76,7 +75,6 @@ export default function LogScreen({ reservoirCropIds }: LogScreenProps) {
               2,
             ),
             water_temp: 21,
-            ambient_temp: 24,
             water_added_liters: 0,
             notes: '',
           },
@@ -173,15 +171,6 @@ export default function LogScreen({ reservoirCropIds }: LogScreenProps) {
           decimals={1}
           maximum={50}
           onChange={(value) => setValue('water_temp', value)}
-        />
-        <NumericStepper
-          label="Ambient temp"
-          unit="°C"
-          value={form.ambient_temp}
-          step={0.1}
-          decimals={1}
-          maximum={60}
-          onChange={(value) => setValue('ambient_temp', value)}
         />
         <NumericStepper
           label="Water added"

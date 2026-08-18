@@ -81,4 +81,28 @@ describe('getSharedCropThresholds', () => {
     expect(thresholds?.ph.compatible).toBe(false)
     expect(thresholds?.ec.compatible).toBe(false)
   })
+
+  it('rejects a point-only overlap that has no usable operating band', () => {
+    const thresholds = getSharedCropThresholds([
+      {
+        target_ph_min: 5.5,
+        target_ph_max: 6,
+        target_ec_min: 1,
+        target_ec_max: 1.6,
+      },
+      {
+        target_ph_min: 6,
+        target_ph_max: 7,
+        target_ec_min: 1.2,
+        target_ec_max: 1.8,
+      },
+    ])
+
+    expect(thresholds?.ph).toEqual({
+      minimum: 6,
+      maximum: 6,
+      compatible: false,
+    })
+    expect(thresholds?.compatible).toBe(false)
+  })
 })

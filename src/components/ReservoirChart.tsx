@@ -36,6 +36,8 @@ function ChartTooltip({ active, payload, label }: TooltipProps) {
 }
 
 export function ReservoirChart({ logs }: ReservoirChartProps) {
+  const showDots = logs.length <= 30
+
   return (
     <div className="chart-wrap" aria-label="pH and EC history chart">
       <div className="chart-legend" aria-hidden="true">
@@ -77,7 +79,7 @@ export function ReservoirChart({ logs }: ReservoirChartProps) {
             dataKey="ph"
             stroke="#008b8f"
             strokeWidth={2.5}
-            dot={{ r: 3.5, fill: '#fff', strokeWidth: 2 }}
+            dot={showDots ? { r: 3.5, fill: '#fff', strokeWidth: 2 } : false}
             activeDot={{ r: 5 }}
             isAnimationActive={false}
           />
@@ -87,7 +89,7 @@ export function ReservoirChart({ logs }: ReservoirChartProps) {
             dataKey="ec"
             stroke="#2457c5"
             strokeWidth={2.5}
-            dot={{ r: 3.5, fill: '#fff', strokeWidth: 2 }}
+            dot={showDots ? { r: 3.5, fill: '#fff', strokeWidth: 2 } : false}
             activeDot={{ r: 5 }}
             isAnimationActive={false}
           />

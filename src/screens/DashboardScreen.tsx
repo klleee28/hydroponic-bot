@@ -198,7 +198,7 @@ export default function DashboardScreen({
               aria-pressed={chartMode === 'readings'}
               onClick={() => setChartModeOverride('readings')}
             >
-              Readings
+              Today’s Reading
             </button>
             <button
               type="button"

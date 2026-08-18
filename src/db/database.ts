@@ -12,6 +12,7 @@ export interface Crop {
 export interface ReservoirLog {
   id: number
   timestamp: number
+  updated_at: number
   ph: number
   ec: number
   water_temp: number
@@ -37,3 +38,18 @@ db.version(1).stores({
   logs: '++id,timestamp',
   tasks: '++id',
 })
+
+db.version(2)
+  .stores({
+    crops: '++id',
+    logs: '++id,timestamp',
+    tasks: '++id',
+  })
+  .upgrade((transaction) =>
+    transaction
+      .table<ReservoirLog>('logs')
+      .toCollection()
+      .modify((log) => {
+        log.updated_at ??= log.timestamp
+      }),
+  )

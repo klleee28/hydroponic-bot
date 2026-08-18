@@ -14,11 +14,16 @@ import { ScreenHeader } from '../components/ScreenHeader'
 import { db, type Crop } from '../db/database'
 import {
   formatDueLabel,
+  formatReadingDateTime,
   getNextDueDate,
   rangeStartTimestamp,
 } from '../lib/dates'
-import { latestLogPerLocalDay } from '../lib/logs'
 import { isBackupDue } from '../lib/backupSchedule'
+import {
+  createDailyChartPoints,
+  createReadingChartPoints,
+  type ChartMode,
+} from '../lib/chartData'
 import {
   evaluateThreshold,
   getOverallStatus,
@@ -49,7 +54,13 @@ export default function DashboardScreen({
   onOpenLog,
 }: DashboardScreenProps) {
   const [rangeId, setRangeId] = useState<RangeId>('30d')
+  const [chartModeOverride, setChartModeOverride] = useState<ChartMode | null>(null)
   const activeRange = ranges.find((range) => range.id === rangeId) ?? ranges[1]
+  const defaultChartMode: ChartMode = activeRange.days !== null
+    && activeRange.days <= 30
+    ? 'readings'
+    : 'daily'
+  const chartMode = chartModeOverride ?? defaultChartMode
   const cropIdsKey = reservoirCropIds.join(',')
   const selectedCrops = useLiveQuery(
     async () => {
@@ -78,7 +89,12 @@ export default function DashboardScreen({
     () => getSharedCropThresholds(selectedCrops),
     [selectedCrops],
   )
-  const logs = useMemo(() => latestLogPerLocalDay(rawLogs), [rawLogs])
+  const chartPoints = useMemo(
+    () => chartMode === 'readings'
+      ? createReadingChartPoints(rawLogs)
+      : createDailyChartPoints(rawLogs),
+    [chartMode, rawLogs],
+  )
 
   const overallStatus = useMemo(() => {
     if (!sharedThresholds) return null
@@ -161,15 +177,39 @@ export default function DashboardScreen({
             type="button"
             aria-label={`${range.label} history`}
             aria-pressed={rangeId === range.id}
-            onClick={() => setRangeId(range.id)}
+            onClick={() => {
+              setRangeId(range.id)
+              setChartModeOverride(null)
+            }}
           >
             {range.label}
           </button>
         ))}
       </div>
 
-      {logs.length ? (
-        <ReservoirChart logs={logs} />
+      {rawLogs.length ? (
+        <>
+          <div
+            className="segmented-control segmented-control--chart-mode"
+            aria-label="Chart data display"
+          >
+            <button
+              type="button"
+              aria-pressed={chartMode === 'readings'}
+              onClick={() => setChartModeOverride('readings')}
+            >
+              Readings
+            </button>
+            <button
+              type="button"
+              aria-pressed={chartMode === 'daily'}
+              onClick={() => setChartModeOverride('daily')}
+            >
+              Daily summary
+            </button>
+          </div>
+          <ReservoirChart mode={chartMode} points={chartPoints} />
+        </>
       ) : (
         <section className="empty-chart">
           <Droplets size={36} strokeWidth={1.7} aria-hidden="true" />
@@ -180,6 +220,12 @@ export default function DashboardScreen({
           </button>
         </section>
       )}
+
+      {latestLog ? (
+        <p className="latest-reading-time">
+          Latest reading · {formatReadingDateTime(latestLog.timestamp)}
+        </p>
+      ) : null}
 
       <section className="reading-list" aria-label="Latest readings">
         <div className="reading-row">

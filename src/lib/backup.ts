@@ -63,6 +63,8 @@ function isReservoirLog(value: unknown): value is ReservoirLog {
   return isPositiveInteger(value.id)
     && isFiniteNumber(value.timestamp)
     && value.timestamp > 0
+    && (value.updated_at === undefined
+      || (isFiniteNumber(value.updated_at) && value.updated_at > 0))
     && isFiniteNumber(value.ph)
     && value.ph >= 0
     && value.ph <= 14
@@ -175,7 +177,12 @@ export async function restoreReservoirBackup(
     await Promise.all([db.crops.clear(), db.logs.clear(), db.tasks.clear()])
     await Promise.all([
       db.crops.bulkAdd(backup.crops),
-      backup.logs.length ? db.logs.bulkAdd(backup.logs) : Promise.resolve(),
+      backup.logs.length
+        ? db.logs.bulkAdd(backup.logs.map((log) => ({
+            ...log,
+            updated_at: log.updated_at ?? log.timestamp,
+          })))
+        : Promise.resolve(),
       backup.tasks.length ? db.tasks.bulkAdd(backup.tasks) : Promise.resolve(),
     ])
   })
@@ -204,6 +211,8 @@ export function createLogsCsv(logs: ReservoirLog[]): string {
     'water_temp_C',
     'water_added_liters',
     'notes',
+    'updated_date',
+    'updated_time',
   ]]
 
   for (const log of [...logs].sort((first, second) => first.timestamp - second.timestamp)) {
@@ -215,6 +224,8 @@ export function createLogsCsv(logs: ReservoirLog[]): string {
       log.water_temp,
       log.water_added_liters,
       log.notes,
+      toLocalDateString(new Date(log.updated_at ?? log.timestamp)),
+      localTimeString(log.updated_at ?? log.timestamp),
     ])
   }
 

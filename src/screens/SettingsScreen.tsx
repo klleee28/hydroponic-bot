@@ -312,7 +312,7 @@ export default function SettingsScreen({
       <section className="settings-section">
         <h2>Crops in this reservoir</h2>
         <p className="settings-helper">
-          Select once. Every daily reading applies to all selected crops.
+          Select once. Every reservoir reading applies to all selected crops.
         </p>
         <div className="crop-membership-list">
           {crops.map((crop) => {

@@ -51,6 +51,47 @@ export function formatShortDate(timestamp: number): string {
   }).format(timestamp)
 }
 
+export function formatReadingTime(timestamp: number): string {
+  return new Intl.DateTimeFormat(undefined, {
+    hour: 'numeric',
+    minute: '2-digit',
+  }).format(timestamp)
+}
+
+export function formatReadingDateTime(timestamp: number): string {
+  return new Intl.DateTimeFormat(undefined, {
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  }).format(timestamp)
+}
+
+export function toLocalDateTimeInput(date: Date = new Date()): string {
+  const hours = String(date.getHours()).padStart(2, '0')
+  const minutes = String(date.getMinutes()).padStart(2, '0')
+  return `${toLocalDateString(date)}T${hours}:${minutes}`
+}
+
+export function parseLocalDateTimeInput(value: string): number | null {
+  const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/.exec(value)
+  if (!match) return null
+
+  const [, year, month, day, hour, minute] = match.map(Number)
+  const date = new Date(year, month - 1, day, hour, minute)
+  if (
+    date.getFullYear() !== year
+    || date.getMonth() !== month - 1
+    || date.getDate() !== day
+    || date.getHours() !== hour
+    || date.getMinutes() !== minute
+  ) {
+    return null
+  }
+
+  return date.getTime()
+}
+
 export function rangeStartTimestamp(days: number, now: Date = new Date()): number {
   const start = new Date(now)
   start.setHours(0, 0, 0, 0)

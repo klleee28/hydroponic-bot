@@ -4,7 +4,9 @@ import {
   formatDueLabel,
   getLocalDayBounds,
   getNextDueDate,
+  parseLocalDateTimeInput,
   rangeStartTimestamp,
+  toLocalDateTimeInput,
   toLocalDateString,
 } from './dates'
 
@@ -43,5 +45,19 @@ describe('chart date range', () => {
     expect(start.getHours()).toBe(0)
     expect(toLocalDateString(end)).toBe('2026-08-19')
     expect(end.getHours()).toBe(0)
+  })
+})
+
+describe('measurement date and time', () => {
+  it('round-trips a valid local minute without timezone conversion', () => {
+    const timestamp = parseLocalDateTimeInput('2026-08-18T08:45')
+
+    expect(timestamp).not.toBeNull()
+    expect(toLocalDateTimeInput(new Date(timestamp!))).toBe('2026-08-18T08:45')
+  })
+
+  it('rejects impossible local dates and times', () => {
+    expect(parseLocalDateTimeInput('2026-02-31T08:45')).toBeNull()
+    expect(parseLocalDateTimeInput('2026-08-18T25:00')).toBeNull()
   })
 })

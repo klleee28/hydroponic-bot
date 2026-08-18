@@ -23,6 +23,7 @@ const crop: Crop = {
 const log: ReservoirLog = {
   id: 9,
   timestamp: new Date(2026, 7, 18, 8, 30).getTime(),
+  updated_at: new Date(2026, 7, 18, 8, 35).getTime(),
   ph: 6.1,
   ec: 1.4,
   water_temp: 21,
@@ -81,6 +82,18 @@ describe('reservoir backup', () => {
     expect(await db.tasks.toArray()).toEqual([task])
   })
 
+  it('restores older backups without edit timestamps', async () => {
+    const backup = validBackup()
+    const legacyLog = { ...backup.logs[0] } as Partial<ReservoirLog>
+    delete legacyLog.updated_at
+    backup.logs = [legacyLog as ReservoirLog]
+
+    expect(parseReservoirBackup(JSON.stringify(backup)).logs[0].updated_at)
+      .toBeUndefined()
+    await restoreReservoirBackup(backup)
+    expect((await db.logs.get(log.id))?.updated_at).toBe(log.timestamp)
+  })
+
   it('rejects malformed JSON and missing reservoir crops', () => {
     expect(() => parseReservoirBackup('{broken')).toThrow('not valid JSON')
 
@@ -106,7 +119,7 @@ describe('CSV export', () => {
     const csv = createLogsCsv([later, log])
 
     expect(csv.startsWith('\uFEFFdate,time,ph,ec_mS_cm')).toBe(true)
-    expect(csv).toContain('2026-08-18,08:30:00,6.1,1.4,21,0.5,"Adjusted, checked ""roots"""')
+    expect(csv).toContain('2026-08-18,08:30:00,6.1,1.4,21,0.5,"Adjusted, checked ""roots""",2026-08-18,08:35:00')
     expect(csv.indexOf('08:30:00')).toBeLessThan(csv.indexOf('08:31:00'))
   })
 

@@ -1,73 +1,57 @@
 import 'fake-indexeddb/auto'
 import { beforeEach, describe, expect, it } from 'vitest'
-import { db, type ReservoirLog } from '../db/database'
-import { latestLogPerLocalDay, saveDailyLog } from './logs'
+import { db } from '../db/database'
+import {
+  createReservoirLog,
+  deleteReservoirLog,
+  updateReservoirLog,
+} from './logs'
 
-function makeLog(id: number, timestamp: number): ReservoirLog {
-  return {
-    id,
-    timestamp,
-    ph: 6 + id / 10,
-    ec: 1.2,
-    water_temp: 21,
-    water_added_liters: 0,
-    notes: '',
-  }
+const draft = {
+  ph: 6.1,
+  ec: 1.4,
+  water_temp: 21,
+  water_added_liters: 0,
+  notes: 'Morning',
 }
 
-describe('latestLogPerLocalDay', () => {
-  it('keeps the newest reading from each local calendar day', () => {
-    const morning = new Date(2026, 7, 18, 8).getTime()
-    const evening = new Date(2026, 7, 18, 19).getTime()
-    const nextDay = new Date(2026, 7, 19, 7).getTime()
-
-    expect(
-      latestLogPerLocalDay([
-        makeLog(3, nextDay),
-        makeLog(2, evening),
-        makeLog(1, morning),
-      ]).map((log) => log.id),
-    ).toEqual([2, 3])
-  })
-
-  it('does not mutate the source log order', () => {
-    const logs = [
-      makeLog(2, new Date(2026, 7, 19, 8).getTime()),
-      makeLog(1, new Date(2026, 7, 18, 8).getTime()),
-    ]
-
-    latestLogPerLocalDay(logs)
-    expect(logs.map((log) => log.id)).toEqual([2, 1])
-  })
-})
-
-describe('saveDailyLog', () => {
+describe('reservoir readings', () => {
   beforeEach(async () => {
     await db.logs.clear()
   })
 
-  it('creates the first reading of a day and updates it on later saves', async () => {
-    const draft = {
-      ph: 6.1,
-      ec: 1.4,
-      water_temp: 21,
-      water_added_liters: 0,
-      notes: 'Morning',
-    }
+  it('creates multiple readings on the same local day', async () => {
     const morning = new Date(2026, 7, 18, 8).getTime()
     const evening = new Date(2026, 7, 18, 19).getTime()
 
-    expect(await saveDailyLog(draft, morning)).toBe('created')
-    expect(
-      await saveDailyLog({ ...draft, ph: 6.3, notes: 'Evening' }, evening),
-    ).toBe('updated')
+    await createReservoirLog(draft, morning, morning)
+    await createReservoirLog({ ...draft, notes: 'Evening' }, evening, evening)
 
-    expect(await db.logs.count()).toBe(1)
-    const saved = await db.logs.toCollection().first()
-    expect(saved).toMatchObject({
+    expect(await db.logs.count()).toBe(2)
+    expect((await db.logs.orderBy('timestamp').toArray()).map((log) => log.timestamp))
+      .toEqual([morning, evening])
+  })
+
+  it('preserves measurement time while recording the edit time', async () => {
+    const measuredAt = new Date(2026, 7, 18, 8).getTime()
+    const editedAt = new Date(2026, 7, 18, 19).getTime()
+    const id = await createReservoirLog(draft, measuredAt, measuredAt)
+
+    await updateReservoirLog(id, { ...draft, ph: 6.3 }, measuredAt, editedAt)
+
+    expect(await db.logs.get(id)).toMatchObject({
+      timestamp: measuredAt,
+      updated_at: editedAt,
       ph: 6.3,
-      notes: 'Evening',
-      timestamp: evening,
     })
+  })
+
+  it('deletes only the selected reading', async () => {
+    const first = await createReservoirLog(draft, 1, 1)
+    await createReservoirLog(draft, 2, 2)
+
+    await deleteReservoirLog(first)
+
+    expect((await db.logs.toArray()).map((log) => log.timestamp)).toEqual([2])
   })
 })

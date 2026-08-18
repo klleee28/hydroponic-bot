@@ -182,6 +182,18 @@ textarea:focus-visible {
   font-size: 0.8rem;
 }
 
+.segmented-control--chart-mode {
+  grid-template-columns: repeat(2, 1fr);
+  margin-top: -4px;
+  border-color: var(--line-strong);
+}
+
+.segmented-control--chart-mode button {
+  min-height: 38px;
+  border-color: var(--line-strong);
+  font-size: 0.76rem;
+}
+
 .chart-wrap {
   margin: 0 -4px 12px;
 }
@@ -201,6 +213,13 @@ textarea:focus-visible {
   display: inline-flex;
   align-items: center;
   gap: 6px;
+}
+
+.chart-legend small {
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 0.65rem;
+  font-weight: 550;
 }
 
 .legend-line {
@@ -231,6 +250,13 @@ textarea:focus-visible {
 
 .chart-tooltip strong {
   color: var(--ink);
+}
+
+.latest-reading-time {
+  margin: -2px 2px 8px;
+  color: var(--muted);
+  font-size: 0.7rem;
+  font-weight: 620;
 }
 
 .empty-chart {
@@ -509,6 +535,31 @@ textarea:focus-visible {
   padding-top: 20px;
 }
 
+.measurement-time {
+  display: grid;
+  gap: 7px;
+  margin-bottom: 16px;
+}
+
+.measurement-time > span {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.92rem;
+  font-weight: 720;
+}
+
+.measurement-time input {
+  width: 100%;
+  min-height: 48px;
+  padding: 0 11px;
+  border: 1px solid var(--line-strong);
+  border-radius: 9px;
+  background: #fff;
+  color: var(--ink);
+  font-size: 16px;
+}
+
 .field-label {
   display: block;
   margin-bottom: 7px;
@@ -591,6 +642,105 @@ textarea:focus-visible {
   color: var(--green);
   font-size: 0.82rem;
   font-weight: 650;
+}
+
+.log-actions > .secondary-button {
+  width: 100%;
+  margin-top: 8px;
+}
+
+.today-readings {
+  margin-top: 9px;
+  padding-top: 20px;
+  border-top: 1px solid var(--line);
+}
+
+.today-readings__heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 9px;
+}
+
+.today-readings__heading h2 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.today-readings__heading p {
+  margin: 2px 0 0;
+  color: var(--muted);
+  font-size: 0.72rem;
+}
+
+.today-readings__list {
+  overflow: hidden;
+  border: 1px solid var(--line-strong);
+  border-radius: 10px;
+}
+
+.today-reading {
+  display: grid;
+  min-height: 66px;
+  grid-template-columns: 58px minmax(0, 1fr) 42px 42px;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 8px 8px 11px;
+  border-bottom: 1px solid var(--line);
+}
+
+.today-reading:last-child {
+  border-bottom: 0;
+}
+
+.today-reading time {
+  color: var(--teal-dark);
+  font-size: 0.75rem;
+  font-weight: 750;
+  font-variant-numeric: tabular-nums;
+}
+
+.today-reading > div {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+}
+
+.today-reading strong {
+  font-size: 0.82rem;
+}
+
+.today-reading span {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 0.68rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.today-reading > button {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border: 0;
+  border-radius: 8px;
+  background: var(--surface-subtle);
+  color: var(--teal);
+}
+
+.today-reading > .today-reading__delete {
+  color: var(--red);
+}
+
+.today-readings__empty {
+  margin: 0;
+  padding: 20px;
+  border: 1px dashed var(--line-strong);
+  border-radius: 10px;
+  color: var(--muted);
+  font-size: 0.8rem;
+  text-align: center;
 }
 
 .settings-section {

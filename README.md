@@ -107,6 +107,24 @@ Safari requires a trusted HTTPS origin for service-worker installation when the 
 
 Plain `http://192.168.x.x:8114` can display the development UI but is not a reliable installable-PWA origin on iOS.
 
+## GitHub Pages deployment
+
+Every push to `main` runs `.github/workflows/deploy-pages.yml`, which tests the
+app, builds it with the `/hydroponic-bot/` base path, and deploys `dist/` to:
+
+`https://klleee28.github.io/hydroponic-bot/`
+
+In the repository, choose **Settings → Pages → Build and deployment → Source →
+GitHub Actions** once. GitHub supplies trusted HTTPS. Open the published URL in
+Safari while online, wait for the first load to finish, and then add that HTTPS
+version to the Home Screen.
+
+The HTTP/LAN and HTTPS/GitHub Pages installations use separate browser storage.
+Before removing the old Home Screen app, create a full JSON backup. Restore that
+file in the new HTTPS installation, confirm the readings are present, and only
+then remove the old icon. Once the first HTTPS load has cached successfully, the
+new installation can open and record data without internet or the laptop.
+
 ## Verification
 
 ```powershell

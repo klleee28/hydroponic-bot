@@ -831,6 +831,61 @@ textarea:focus-visible {
   text-align: center;
 }
 
+.backup-reminder {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px 11px;
+  margin: 0 0 16px;
+  padding: 13px;
+  border: 1px solid #e6bc72;
+  border-radius: 12px;
+  background: var(--amber-bg);
+}
+
+.backup-reminder__icon {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border-radius: 50%;
+  background: #fff;
+  color: var(--amber);
+}
+
+.backup-reminder strong {
+  color: var(--ink);
+  font-size: 0.9rem;
+}
+
+.backup-reminder p {
+  margin: 2px 0 0;
+  color: #6f552e;
+  font-size: 0.73rem;
+  line-height: 1.4;
+}
+
+.backup-reminder > button {
+  min-height: 46px;
+  grid-column: 1 / -1;
+  border: 0;
+  border-radius: 9px;
+  background: var(--amber);
+  color: #fff;
+  font-size: 0.82rem;
+  font-weight: 760;
+}
+
+.backup-reminder > button:disabled {
+  opacity: 0.55;
+}
+
+.backup-reminder .backup-reminder__error {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: var(--red);
+}
+
 .backup-heading {
   display: flex;
   align-items: flex-start;
@@ -844,7 +899,19 @@ textarea:focus-visible {
 }
 
 .backup-heading .settings-helper {
-  margin-bottom: 10px;
+  margin-bottom: 4px;
+}
+
+.backup-schedule {
+  margin: 0 0 11px;
+  color: var(--green);
+  font-size: 0.7rem;
+  font-weight: 680;
+  line-height: 1.4;
+}
+
+.backup-schedule--due {
+  color: var(--amber);
 }
 
 .backup-actions {

@@ -3,7 +3,11 @@ import { AppShell } from './components/AppShell'
 import type { AppScreen } from './components/BottomNav'
 import { LoadingScreen } from './components/LoadingScreen'
 import { initializeDatabase } from './db/seed'
-import { setReservoirCropIds } from './lib/preferences'
+import {
+  getLastBackupAt,
+  setLastBackupAt,
+  setReservoirCropIds,
+} from './lib/preferences'
 
 const DashboardScreen = lazy(() => import('./screens/DashboardScreen'))
 const LogScreen = lazy(() => import('./screens/LogScreen'))
@@ -19,6 +23,9 @@ function getInitialization(): Promise<number[]> {
 function App() {
   const [screen, setScreen] = useState<AppScreen>('dashboard')
   const [reservoirCropIds, updateReservoirCropIds] = useState<number[]>([])
+  const [lastBackupAt, updateLastBackupAt] = useState<number | null>(() =>
+    getLastBackupAt(),
+  )
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -43,6 +50,11 @@ function App() {
     updateReservoirCropIds(ids)
   }
 
+  const completeBackup = (timestamp: number) => {
+    setLastBackupAt(timestamp)
+    updateLastBackupAt(timestamp)
+  }
+
   if (error) {
     return (
       <div className="fatal-error" role="alert">
@@ -61,13 +73,21 @@ function App() {
         {screen === 'dashboard' ? (
           <DashboardScreen
             reservoirCropIds={reservoirCropIds}
+            lastBackupAt={lastBackupAt}
+            onBackupCompleted={completeBackup}
             onOpenLog={() => setScreen('log')}
           />
         ) : screen === 'log' ? (
-          <LogScreen reservoirCropIds={reservoirCropIds} />
+          <LogScreen
+            reservoirCropIds={reservoirCropIds}
+            lastBackupAt={lastBackupAt}
+            onBackupCompleted={completeBackup}
+          />
         ) : (
           <SettingsScreen
             reservoirCropIds={reservoirCropIds}
+            lastBackupAt={lastBackupAt}
+            onBackupCompleted={completeBackup}
             onReservoirCropsChange={changeReservoirCrops}
           />
         )}

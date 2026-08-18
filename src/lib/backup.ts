@@ -20,6 +20,7 @@ export interface ReservoirBackup {
 }
 
 export interface PreparedExport {
+  kind: 'full-backup' | 'logs-csv'
   fileName: string
   mimeType: string
   contents: string

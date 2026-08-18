@@ -55,6 +55,13 @@ On supported iPhones the app opens the Share Sheet so files can be saved to
 Files or iCloud Drive. Other browsers receive a normal file download. No backup
 is uploaded automatically and no cloud account is required by the app.
 
+Once reservoir readings exist, the Dashboard shows a weekly backup reminder if
+no full backup has been saved or the last one was saved at least seven days ago.
+The same reminder appears immediately after saving a due daily log. Successfully
+saving or sharing a full JSON backup starts the next seven-day interval; a CSV
+export does not. The reminder is checked when the app is open—iOS does not allow
+this offline-only app to create backup files unattended in the background.
+
 ## Local development
 
 ```powershell
@@ -94,7 +101,10 @@ npm run lint
 npm run build
 ```
 
-The tests cover backup validation and restoration, CSV escaping, offline preset data, shared crop ranges, threshold bands, recurring due dates, local day boundaries, one daily update, and one chart point per day.
+The tests cover backup validation and restoration, the weekly backup schedule,
+CSV escaping, offline preset data, shared crop ranges, threshold bands,
+recurring due dates, local day boundaries, one daily update, and one chart point
+per day.
 
 ## Local storage
 

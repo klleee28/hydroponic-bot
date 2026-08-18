@@ -30,6 +30,7 @@ import {
   type CropPreset,
 } from '../lib/cropLibrary'
 import { getSharedCropThresholds } from '../lib/thresholds'
+import { getNextBackupDueAt, isBackupDue } from '../lib/backupSchedule'
 import {
   backupFileName,
   createLogsCsv,
@@ -44,6 +45,8 @@ import {
 
 interface SettingsScreenProps {
   reservoirCropIds: number[]
+  lastBackupAt: number | null
+  onBackupCompleted: (timestamp: number) => void
   onReservoirCropsChange: (ids: number[]) => void
 }
 
@@ -67,6 +70,8 @@ function formatCalendarDate(value: string): string {
 
 export default function SettingsScreen({
   reservoirCropIds,
+  lastBackupAt,
+  onBackupCompleted,
   onReservoirCropsChange,
 }: SettingsScreenProps) {
   const crops = useLiveQuery(() => db.crops.toArray(), [], [])
@@ -210,6 +215,7 @@ export default function SettingsScreen({
       const now = new Date()
       const backup = await createReservoirBackup(reservoirCropIds, now)
       setPreparedExport({
+        kind: 'full-backup',
         fileName: backupFileName(now),
         mimeType: 'application/json',
         contents: JSON.stringify(backup, null, 2),
@@ -230,6 +236,7 @@ export default function SettingsScreen({
       const now = new Date()
       const logs = await db.logs.orderBy('timestamp').toArray()
       setPreparedExport({
+        kind: 'logs-csv',
         fileName: logsCsvFileName(now),
         mimeType: 'text/csv;charset=utf-8',
         contents: createLogsCsv(logs),
@@ -252,6 +259,9 @@ export default function SettingsScreen({
           ? 'File shared successfully.'
           : 'File downloaded successfully.',
       )
+      if (preparedExport.kind === 'full-backup') {
+        onBackupCompleted(Date.now())
+      }
       setPreparedExport(null)
     } catch (reason: unknown) {
       setDataError(reason instanceof Error ? reason.message : 'Could not save file.')
@@ -433,6 +443,13 @@ export default function SettingsScreen({
             <h2>Backup & data</h2>
             <p className="settings-helper">
               Save to Files or iCloud so your local records can be recovered.
+            </p>
+            <p className={`backup-schedule${isBackupDue(lastBackupAt) ? ' backup-schedule--due' : ''}`}>
+              {lastBackupAt === null
+                ? 'No full backup saved yet · weekly reminder active'
+                : isBackupDue(lastBackupAt)
+                  ? `Last full backup ${new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' }).format(new Date(lastBackupAt))} · due now`
+                  : `Last full backup ${new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' }).format(new Date(lastBackupAt))} · next due ${new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' }).format(new Date(getNextBackupDueAt(lastBackupAt)))}`}
             </p>
           </div>
           <ShieldCheck size={25} aria-hidden="true" />

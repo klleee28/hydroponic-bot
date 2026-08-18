@@ -1,5 +1,6 @@
 const ACTIVE_CROP_KEY = 'hydroponic.activeCropId.v1'
 const RESERVOIR_CROPS_KEY = 'hydroponic.reservoirCropIds.v1'
+const LAST_BACKUP_AT_KEY = 'hydroponic.lastBackupAt.v1'
 
 export function getActiveCropId(): number | null {
   if (typeof window === 'undefined') return null
@@ -35,4 +36,21 @@ export function setReservoirCropIds(ids: number[]): void {
     (id) => Number.isInteger(id) && id > 0,
   )
   window.localStorage.setItem(RESERVOIR_CROPS_KEY, JSON.stringify(normalized))
+}
+
+export function getLastBackupAt(): number | null {
+  if (typeof window === 'undefined') return null
+
+  const stored = window.localStorage.getItem(LAST_BACKUP_AT_KEY)
+  if (!stored) return null
+
+  const parsed = Number(stored)
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null
+}
+
+export function setLastBackupAt(timestamp: number): void {
+  if (typeof window === 'undefined') return
+  if (!Number.isFinite(timestamp) || timestamp <= 0) return
+
+  window.localStorage.setItem(LAST_BACKUP_AT_KEY, String(timestamp))
 }

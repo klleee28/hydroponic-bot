@@ -1,15 +1,19 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { CheckCircle2 } from 'lucide-react'
+import { BackupReminder } from '../components/BackupReminder'
 import { NumericStepper } from '../components/NumericStepper'
 import { ScreenHeader } from '../components/ScreenHeader'
 import { db, type Crop } from '../db/database'
 import { getLocalDayBounds } from '../lib/dates'
 import { saveDailyLog, type ReservoirLogDraft } from '../lib/logs'
+import { isBackupDue } from '../lib/backupSchedule'
 import { evaluateThreshold, getSharedCropThresholds } from '../lib/thresholds'
 
 interface LogScreenProps {
   reservoirCropIds: number[]
+  lastBackupAt: number | null
+  onBackupCompleted: (timestamp: number) => void
 }
 
 type LogForm = ReservoirLogDraft
@@ -18,7 +22,11 @@ function midpoint(minimum: number, maximum: number, decimals: number): number {
   return Number(((minimum + maximum) / 2).toFixed(decimals))
 }
 
-export default function LogScreen({ reservoirCropIds }: LogScreenProps) {
+export default function LogScreen({
+  reservoirCropIds,
+  lastBackupAt,
+  onBackupCompleted,
+}: LogScreenProps) {
   const cropIdsKey = reservoirCropIds.join(',')
   const selectedCrops = useLiveQuery(
     async () => {
@@ -201,6 +209,12 @@ export default function LogScreen({ reservoirCropIds }: LogScreenProps) {
             <CheckCircle2 size={19} aria-hidden="true" />
             {savedAction === 'updated' ? 'Today’s reading updated' : 'Today’s reading saved'} locally
           </div>
+        ) : null}
+        {savedAction && isBackupDue(lastBackupAt) ? (
+          <BackupReminder
+            reservoirCropIds={reservoirCropIds}
+            onBackupCompleted={onBackupCompleted}
+          />
         ) : null}
       </div>
     </div>

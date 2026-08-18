@@ -9,6 +9,7 @@ import {
   Wrench,
 } from 'lucide-react'
 import { ReservoirChart } from '../components/ReservoirChart'
+import { BackupReminder } from '../components/BackupReminder'
 import { ScreenHeader } from '../components/ScreenHeader'
 import { db, type Crop } from '../db/database'
 import {
@@ -17,6 +18,7 @@ import {
   rangeStartTimestamp,
 } from '../lib/dates'
 import { latestLogPerLocalDay } from '../lib/logs'
+import { isBackupDue } from '../lib/backupSchedule'
 import {
   evaluateThreshold,
   getOverallStatus,
@@ -25,6 +27,8 @@ import {
 
 interface DashboardScreenProps {
   reservoirCropIds: number[]
+  lastBackupAt: number | null
+  onBackupCompleted: (timestamp: number) => void
   onOpenLog: () => void
 }
 
@@ -40,6 +44,8 @@ type RangeId = (typeof ranges)[number]['id']
 
 export default function DashboardScreen({
   reservoirCropIds,
+  lastBackupAt,
+  onBackupCompleted,
   onOpenLog,
 }: DashboardScreenProps) {
   const [rangeId, setRangeId] = useState<RangeId>('30d')
@@ -137,6 +143,13 @@ export default function DashboardScreen({
           </>
         }
       />
+
+      {latestLog && isBackupDue(lastBackupAt) ? (
+        <BackupReminder
+          reservoirCropIds={reservoirCropIds}
+          onBackupCompleted={onBackupCompleted}
+        />
+      ) : null}
 
       <div
         className="segmented-control segmented-control--history"

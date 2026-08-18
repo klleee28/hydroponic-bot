@@ -57,3 +57,13 @@ export function rangeStartTimestamp(days: number, now: Date = new Date()): numbe
   start.setDate(start.getDate() - (days - 1))
   return start.getTime()
 }
+
+export function getLocalDayBounds(now: Date = new Date()): {
+  start: number
+  end: number
+} {
+  const start = new Date(now)
+  start.setHours(0, 0, 0, 0)
+  const end = addDays(start, 1)
+  return { start: start.getTime(), end: end.getTime() }
+}

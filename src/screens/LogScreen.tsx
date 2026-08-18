@@ -3,11 +3,13 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { CheckCircle2 } from 'lucide-react'
 import { NumericStepper } from '../components/NumericStepper'
 import { ScreenHeader } from '../components/ScreenHeader'
-import { db, type ReservoirLog } from '../db/database'
-import { evaluateThreshold } from '../lib/thresholds'
+import { db, type Crop, type ReservoirLog } from '../db/database'
+import { getLocalDayBounds } from '../lib/dates'
+import { saveDailyLog } from '../lib/logs'
+import { evaluateThreshold, getSharedCropThresholds } from '../lib/thresholds'
 
 interface LogScreenProps {
-  activeCropId: number
+  reservoirCropIds: number[]
 }
 
 type LogForm = Omit<ReservoirLog, 'id' | 'timestamp'>
@@ -16,70 +18,98 @@ function midpoint(minimum: number, maximum: number, decimals: number): number {
   return Number(((minimum + maximum) / 2).toFixed(decimals))
 }
 
-export default function LogScreen({ activeCropId }: LogScreenProps) {
-  const activeCrop = useLiveQuery(() => db.crops.get(activeCropId), [activeCropId])
-  const latestLog = useLiveQuery(
-    async () => (await db.logs.orderBy('timestamp').last()) ?? null,
+export default function LogScreen({ reservoirCropIds }: LogScreenProps) {
+  const cropIdsKey = reservoirCropIds.join(',')
+  const selectedCrops = useLiveQuery(
+    async () => {
+      const crops = await db.crops.bulkGet(reservoirCropIds)
+      return crops.filter((crop): crop is Crop => Boolean(crop))
+    },
+    [cropIdsKey],
+    [],
+  )
+  const logState = useLiveQuery(
+    async () => {
+      const { start, end } = getLocalDayBounds()
+      const [todayLog, latestLog] = await Promise.all([
+        db.logs.where('timestamp').between(start, end, true, false).last(),
+        db.logs.orderBy('timestamp').last(),
+      ])
+      return {
+        todayLog: todayLog ?? null,
+        latestLog: latestLog ?? null,
+      }
+    },
     [],
   )
   const [form, setForm] = useState<LogForm | null>(null)
-  const [saved, setSaved] = useState(false)
+  const [savedAction, setSavedAction] = useState<'created' | 'updated' | null>(null)
+  const sharedThresholds = useMemo(
+    () => getSharedCropThresholds(selectedCrops),
+    [selectedCrops],
+  )
 
   useEffect(() => {
-    if (!activeCrop || latestLog === undefined || form) return
+    if (!sharedThresholds || !logState || form) return
+
+    const prefillLog = logState.todayLog ?? logState.latestLog
 
     setForm(
-      latestLog
+      prefillLog
         ? {
-            ph: latestLog.ph,
-            ec: latestLog.ec,
-            water_temp: latestLog.water_temp,
-            ambient_temp: latestLog.ambient_temp,
-            water_added_liters: latestLog.water_added_liters,
-            notes: '',
+            ph: prefillLog.ph,
+            ec: prefillLog.ec,
+            water_temp: prefillLog.water_temp,
+            ambient_temp: prefillLog.ambient_temp,
+            water_added_liters: prefillLog.water_added_liters,
+            notes: logState.todayLog ? prefillLog.notes : '',
           }
         : {
-            ph: midpoint(activeCrop.target_ph_min, activeCrop.target_ph_max, 1),
-            ec: midpoint(activeCrop.target_ec_min, activeCrop.target_ec_max, 2),
+            ph: midpoint(
+              sharedThresholds.ph.minimum,
+              sharedThresholds.ph.maximum,
+              1,
+            ),
+            ec: midpoint(
+              sharedThresholds.ec.minimum,
+              sharedThresholds.ec.maximum,
+              2,
+            ),
             water_temp: 21,
             ambient_temp: 24,
             water_added_liters: 0,
             notes: '',
           },
     )
-  }, [activeCrop, form, latestLog])
+  }, [form, logState, sharedThresholds])
 
   const thresholds = useMemo(() => {
-    if (!activeCrop || !form) return null
+    if (!sharedThresholds || !form) return null
     return {
       ph: evaluateThreshold(
         form.ph,
-        activeCrop.target_ph_min,
-        activeCrop.target_ph_max,
+        sharedThresholds.ph.minimum,
+        sharedThresholds.ph.maximum,
       ),
       ec: evaluateThreshold(
         form.ec,
-        activeCrop.target_ec_min,
-        activeCrop.target_ec_max,
+        sharedThresholds.ec.minimum,
+        sharedThresholds.ec.maximum,
       ),
     }
-  }, [activeCrop, form])
+  }, [form, sharedThresholds])
 
   const setValue = (key: keyof LogForm, value: number | string) => {
-    setSaved(false)
+    setSavedAction(null)
     setForm((current) => (current ? { ...current, [key]: value } : current))
   }
 
   const saveLog = async () => {
     if (!form) return
-    await db.logs.add({
-      ...form,
-      timestamp: Date.now(),
-    })
-    setSaved(true)
+    setSavedAction(await saveDailyLog(form))
   }
 
-  if (!activeCrop || !form || !thresholds) {
+  if (!sharedThresholds || !logState || !form || !thresholds) {
     return (
       <div className="screen">
         <ScreenHeader title="Daily Log" subtitle="Preparing your latest values…" />
@@ -92,9 +122,22 @@ export default function LogScreen({ activeCropId }: LogScreenProps) {
       <div className="screen-padding">
         <ScreenHeader
           title="Daily Log"
-          subtitle={latestLog ? 'Based on your last entry' : 'Starting with crop midpoints'}
+          subtitle={
+            logState.todayLog
+              ? 'Editing today’s saved reservoir reading'
+              : logState.latestLog
+                ? 'Based on your most recent reading'
+                : 'Starting with the shared crop midpoint'
+          }
         />
       </div>
+
+      {!sharedThresholds.compatible ? (
+        <div className="range-conflict range-conflict--log" role="alert">
+          These crops have no overlapping safe range. Adjust their crop
+          thresholds or reservoir membership in Settings.
+        </div>
+      ) : null}
 
       <section className="stepper-list" aria-label="Reservoir readings">
         <NumericStepper
@@ -104,7 +147,9 @@ export default function LogScreen({ activeCropId }: LogScreenProps) {
           decimals={1}
           maximum={14}
           threshold={thresholds.ph}
-          targetText={`${activeCrop.target_ph_min.toFixed(1)}–${activeCrop.target_ph_max.toFixed(1)}`}
+          targetText={sharedThresholds.ph.compatible
+            ? `${sharedThresholds.ph.minimum.toFixed(1)}–${sharedThresholds.ph.maximum.toFixed(1)}`
+            : 'No overlap'}
           onChange={(value) => setValue('ph', value)}
         />
         <NumericStepper
@@ -115,7 +160,9 @@ export default function LogScreen({ activeCropId }: LogScreenProps) {
           decimals={2}
           maximum={10}
           threshold={thresholds.ec}
-          targetText={`${activeCrop.target_ec_min.toFixed(1)}–${activeCrop.target_ec_max.toFixed(1)}`}
+          targetText={sharedThresholds.ec.compatible
+            ? `${sharedThresholds.ec.minimum.toFixed(2)}–${sharedThresholds.ec.maximum.toFixed(2)}`
+            : 'No overlap'}
           onChange={(value) => setValue('ec', value)}
         />
         <NumericStepper
@@ -158,12 +205,12 @@ export default function LogScreen({ activeCropId }: LogScreenProps) {
           onChange={(event) => setValue('notes', event.target.value)}
         />
         <button type="button" className="primary-button" onClick={saveLog}>
-          Save Log
+          {logState.todayLog ? 'Update Today’s Log' : 'Save Today’s Log'}
         </button>
-        {saved ? (
+        {savedAction ? (
           <div className="save-confirmation" role="status">
             <CheckCircle2 size={19} aria-hidden="true" />
-            Saved locally on this iPhone
+            {savedAction === 'updated' ? 'Today’s reading updated' : 'Today’s reading saved'} locally
           </div>
         ) : null}
       </div>

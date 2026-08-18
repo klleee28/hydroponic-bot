@@ -3,29 +3,29 @@ import { AppShell } from './components/AppShell'
 import type { AppScreen } from './components/BottomNav'
 import { LoadingScreen } from './components/LoadingScreen'
 import { initializeDatabase } from './db/seed'
-import { setActiveCropId } from './lib/preferences'
+import { setReservoirCropIds } from './lib/preferences'
 
 const DashboardScreen = lazy(() => import('./screens/DashboardScreen'))
 const LogScreen = lazy(() => import('./screens/LogScreen'))
 const SettingsScreen = lazy(() => import('./screens/SettingsScreen'))
 
-let initializationPromise: Promise<number> | null = null
+let initializationPromise: Promise<number[]> | null = null
 
-function getInitialization(): Promise<number> {
+function getInitialization(): Promise<number[]> {
   initializationPromise ??= initializeDatabase()
   return initializationPromise
 }
 
 function App() {
   const [screen, setScreen] = useState<AppScreen>('dashboard')
-  const [activeCropId, updateActiveCropId] = useState<number | null>(null)
+  const [reservoirCropIds, updateReservoirCropIds] = useState<number[]>([])
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     let active = true
     getInitialization()
-      .then((id) => {
-        if (active) updateActiveCropId(id)
+      .then((ids) => {
+        if (active) updateReservoirCropIds(ids)
       })
       .catch((reason: unknown) => {
         if (active) {
@@ -38,9 +38,9 @@ function App() {
     }
   }, [])
 
-  const changeActiveCrop = (id: number) => {
-    setActiveCropId(id)
-    updateActiveCropId(id)
+  const changeReservoirCrops = (ids: number[]) => {
+    setReservoirCropIds(ids)
+    updateReservoirCropIds(ids)
   }
 
   if (error) {
@@ -53,22 +53,22 @@ function App() {
     )
   }
 
-  if (!activeCropId) return <LoadingScreen />
+  if (!reservoirCropIds.length) return <LoadingScreen />
 
   return (
     <AppShell screen={screen} onScreenChange={setScreen}>
       <Suspense fallback={<LoadingScreen />}>
         {screen === 'dashboard' ? (
           <DashboardScreen
-            activeCropId={activeCropId}
+            reservoirCropIds={reservoirCropIds}
             onOpenLog={() => setScreen('log')}
           />
         ) : screen === 'log' ? (
-          <LogScreen activeCropId={activeCropId} />
+          <LogScreen reservoirCropIds={reservoirCropIds} />
         ) : (
           <SettingsScreen
-            activeCropId={activeCropId}
-            onActiveCropChange={changeActiveCrop}
+            reservoirCropIds={reservoirCropIds}
+            onReservoirCropsChange={changeReservoirCrops}
           />
         )}
       </Suspense>

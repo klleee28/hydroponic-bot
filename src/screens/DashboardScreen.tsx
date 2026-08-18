@@ -10,32 +10,45 @@ import {
 } from 'lucide-react'
 import { ReservoirChart } from '../components/ReservoirChart'
 import { ScreenHeader } from '../components/ScreenHeader'
-import { db } from '../db/database'
+import { db, type Crop } from '../db/database'
 import {
   formatDueLabel,
   getNextDueDate,
   rangeStartTimestamp,
 } from '../lib/dates'
-import { evaluateThreshold, getOverallStatus } from '../lib/thresholds'
+import { latestLogPerLocalDay } from '../lib/logs'
+import {
+  evaluateThreshold,
+  getOverallStatus,
+  getSharedCropThresholds,
+} from '../lib/thresholds'
 
 interface DashboardScreenProps {
-  activeCropId: number
+  reservoirCropIds: number[]
   onOpenLog: () => void
 }
 
 const ranges = [7, 14, 30] as const
 
 export default function DashboardScreen({
-  activeCropId,
+  reservoirCropIds,
   onOpenLog,
 }: DashboardScreenProps) {
   const [days, setDays] = useState<(typeof ranges)[number]>(7)
-  const activeCrop = useLiveQuery(() => db.crops.get(activeCropId), [activeCropId])
+  const cropIdsKey = reservoirCropIds.join(',')
+  const selectedCrops = useLiveQuery(
+    async () => {
+      const crops = await db.crops.bulkGet(reservoirCropIds)
+      return crops.filter((crop): crop is Crop => Boolean(crop))
+    },
+    [cropIdsKey],
+    [],
+  )
   const latestLog = useLiveQuery(
     () => db.logs.orderBy('timestamp').last(),
     [],
   )
-  const logs = useLiveQuery(
+  const rawLogs = useLiveQuery(
     () =>
       db.logs
         .where('timestamp')
@@ -45,22 +58,29 @@ export default function DashboardScreen({
     [],
   )
   const tasks = useLiveQuery(() => db.tasks.toArray(), [], [])
+  const sharedThresholds = useMemo(
+    () => getSharedCropThresholds(selectedCrops),
+    [selectedCrops],
+  )
+  const logs = useMemo(() => latestLogPerLocalDay(rawLogs), [rawLogs])
 
   const overallStatus = useMemo(() => {
-    if (!activeCrop || !latestLog) return null
+    if (!sharedThresholds) return null
+    if (!sharedThresholds.compatible) return 'out-of-range'
+    if (!latestLog) return null
     return getOverallStatus([
       evaluateThreshold(
         latestLog.ph,
-        activeCrop.target_ph_min,
-        activeCrop.target_ph_max,
+        sharedThresholds.ph.minimum,
+        sharedThresholds.ph.maximum,
       ).status,
       evaluateThreshold(
         latestLog.ec,
-        activeCrop.target_ec_min,
-        activeCrop.target_ec_max,
+        sharedThresholds.ec.minimum,
+        sharedThresholds.ec.maximum,
       ).status,
     ])
-  }, [activeCrop, latestLog])
+  }, [latestLog, sharedThresholds])
 
   const nextTask = useMemo(() => {
     return tasks
@@ -71,14 +91,21 @@ export default function DashboardScreen({
       .sort((a, b) => a.due.localeCompare(b.due))[0]
   }, [tasks])
 
-  const statusCopy =
-    overallStatus === 'out-of-range'
+  const statusCopy = !sharedThresholds?.compatible
+    ? 'Selected crops have no shared safe range'
+    : overallStatus === 'out-of-range'
       ? 'A reading is out of range'
       : overallStatus === 'near-limit'
         ? 'A reading is near its limit'
         : overallStatus === 'optimal'
           ? 'All readings in range'
           : 'Add your first reservoir reading'
+
+  const cropSummary = selectedCrops.length === 1
+    ? selectedCrops[0].name
+    : selectedCrops.length === 2
+      ? selectedCrops.map((crop) => crop.name).join(' + ')
+      : `${selectedCrops[0]?.name ?? 'Reservoir'} + ${selectedCrops.length - 1} more`
 
   return (
     <div className="screen">
@@ -87,7 +114,7 @@ export default function DashboardScreen({
         subtitle={
           <>
             <strong className="crop-name">
-              {activeCrop?.name ?? 'Loading crop…'}
+              {cropSummary || 'Loading crops…'}
             </strong>
             <div className={`overall-status overall-status--${overallStatus ?? 'empty'}`}>
               {overallStatus === 'optimal' ? (

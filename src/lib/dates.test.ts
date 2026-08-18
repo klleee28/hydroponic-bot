@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   daysUntil,
   formatDueLabel,
+  getLocalDayBounds,
   getNextDueDate,
   rangeStartTimestamp,
   toLocalDateString,
@@ -31,5 +32,16 @@ describe('chart date range', () => {
     const start = new Date(rangeStartTimestamp(7, today))
     expect(toLocalDateString(start)).toBe('2026-08-12')
     expect(start.getHours()).toBe(0)
+  })
+
+  it('returns an inclusive local start and exclusive next-day boundary', () => {
+    const bounds = getLocalDayBounds(today)
+    const start = new Date(bounds.start)
+    const end = new Date(bounds.end)
+
+    expect(toLocalDateString(start)).toBe('2026-08-18')
+    expect(start.getHours()).toBe(0)
+    expect(toLocalDateString(end)).toBe('2026-08-19')
+    expect(end.getHours()).toBe(0)
   })
 })

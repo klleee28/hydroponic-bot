@@ -5,17 +5,25 @@ An iPhone-first, offline PWA for monitoring one hydroponic reservoir. All behavi
 ## Features
 
 - Fast daily logging with large pH, EC, temperature, and water steppers
-- Automatic prefill from the most recent log
-- Green, amber, and red crop-threshold feedback while values are adjusted
-- pH and EC charts for the last 7, 14, or 30 days
-- Active crop selection and editable target ranges
+- One reservoir reading per local day; later saves update that day in place
+- Automatic prefill from today's reading or the most recent prior log
+- Green, amber, and red shared-threshold feedback while values are adjusted
+- pH and EC charts for the last 7, 14, or 30 days, with one point per day
+- Multi-select reservoir crops and editable crop target ranges
 - Recurring maintenance tasks with deterministic due dates
 - Dexie/IndexedDB persistence and Workbox precaching for offline use
 - iOS standalone metadata, safe-area layout, and generated PWA icons
 
-## Deterministic threshold rule
+## Deterministic shared threshold rule
 
-For a crop range `[minimum, maximum]`:
+Each reservoir log belongs to the single reservoir, not to an individual crop.
+For all crops selected in **Crops in this reservoir**, the app calculates:
+
+- **Shared minimum:** the highest selected crop minimum.
+- **Shared maximum:** the lowest selected crop maximum.
+- **Incompatible mix:** shared minimum is higher than shared maximum for pH or EC.
+
+For the resulting shared range `[minimum, maximum]`:
 
 - **Red:** value is outside the range.
 - **Amber:** value is inside the range and within 10% of the range span from either boundary.
@@ -62,7 +70,7 @@ npm run lint
 npm run build
 ```
 
-The tests cover threshold bands, overall severity, recurring due dates, overdue labels, and local chart ranges.
+The tests cover shared crop ranges, threshold bands, overall severity, recurring due dates, local day boundaries, and one chart point per day.
 
 ## Local storage
 
@@ -72,7 +80,7 @@ IndexedDB database: `HydroponicReservoirDB`
 - `logs`: auto-incremented `id`, indexed `timestamp`
 - `tasks`: auto-incremented `id`
 
-The active crop ID is stored separately in versioned local storage under `hydroponic.activeCropId.v1`, preserving the requested three-table database schema.
+Reservoir crop membership is stored separately in versioned local storage under `hydroponic.reservoirCropIds.v1`, preserving the requested three-table database schema. Existing installs migrate their previous active crop without silently changing its thresholds.
 
 ## Visual reference
 

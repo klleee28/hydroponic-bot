@@ -1,5 +1,9 @@
 import { db } from './database'
-import { getActiveCropId, setActiveCropId } from '../lib/preferences'
+import {
+  getActiveCropId,
+  getReservoirCropIds,
+  setReservoirCropIds,
+} from '../lib/preferences'
 
 const DEFAULT_CROPS = [
   {
@@ -31,7 +35,7 @@ const DEFAULT_TASKS = [
   },
 ]
 
-export async function initializeDatabase(): Promise<number> {
+export async function initializeDatabase(): Promise<number[]> {
   await db.transaction('rw', [db.crops, db.tasks], async () => {
     if ((await db.crops.count()) === 0) {
       await db.crops.bulkAdd(DEFAULT_CROPS)
@@ -42,16 +46,25 @@ export async function initializeDatabase(): Promise<number> {
     }
   })
 
-  const savedId = getActiveCropId()
-  if (savedId && (await db.crops.get(savedId))) {
-    return savedId
+  const crops = await db.crops.orderBy('id').toArray()
+  if (!crops.length) {
+    throw new Error('Unable to initialize reservoir crops')
   }
 
-  const firstCrop = await db.crops.orderBy('id').first()
-  if (!firstCrop) {
-    throw new Error('Unable to initialize an active crop')
+  const availableIds = new Set(crops.map((crop) => crop.id))
+  const savedIds = getReservoirCropIds().filter((id) => availableIds.has(id))
+  if (savedIds.length) {
+    setReservoirCropIds(savedIds)
+    return savedIds
   }
 
-  setActiveCropId(firstCrop.id)
-  return firstCrop.id
+  // Preserve an existing user's former active crop without silently widening
+  // its thresholds. Brand-new installs include all seeded reservoir crops.
+  const legacyId = getActiveCropId()
+  const selectedIds = legacyId && availableIds.has(legacyId)
+    ? [legacyId]
+    : crops.map((crop) => crop.id)
+
+  setReservoirCropIds(selectedIds)
+  return selectedIds
 }

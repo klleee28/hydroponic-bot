@@ -2,7 +2,6 @@ import { useMemo, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import {
   CalendarCheck2,
-  ChevronRight,
   Leaf,
   Pencil,
   Plus,
@@ -17,10 +16,11 @@ import {
   parseLocalDate,
   toLocalDateString,
 } from '../lib/dates'
+import { getSharedCropThresholds } from '../lib/thresholds'
 
 interface SettingsScreenProps {
-  activeCropId: number
-  onActiveCropChange: (id: number) => void
+  reservoirCropIds: number[]
+  onReservoirCropsChange: (ids: number[]) => void
 }
 
 type CropDraft = Omit<Crop, 'id'>
@@ -42,12 +42,23 @@ function formatCalendarDate(value: string): string {
 }
 
 export default function SettingsScreen({
-  activeCropId,
-  onActiveCropChange,
+  reservoirCropIds,
+  onReservoirCropsChange,
 }: SettingsScreenProps) {
   const crops = useLiveQuery(() => db.crops.toArray(), [], [])
   const tasks = useLiveQuery(() => db.tasks.toArray(), [], [])
-  const activeCrop = crops.find((crop) => crop.id === activeCropId)
+  const reservoirCropIdSet = useMemo(
+    () => new Set(reservoirCropIds),
+    [reservoirCropIds],
+  )
+  const selectedCrops = useMemo(
+    () => crops.filter((crop) => reservoirCropIdSet.has(crop.id)),
+    [crops, reservoirCropIdSet],
+  )
+  const sharedThresholds = useMemo(
+    () => getSharedCropThresholds(selectedCrops),
+    [selectedCrops],
+  )
   const [cropDraft, setCropDraft] = useState<CropDraft | null>(null)
   const [editingCropId, setEditingCropId] = useState<number | null>(null)
   const [taskDraft, setTaskDraft] = useState({ title: '', interval_days: 14 })
@@ -69,16 +80,27 @@ export default function SettingsScreen({
     setCropDraft({ ...EMPTY_CROP })
   }
 
-  const openEditCrop = () => {
-    if (!activeCrop) return
-    setEditingCropId(activeCrop.id)
+  const openEditCrop = (crop: Crop) => {
+    setEditingCropId(crop.id)
     setCropDraft({
-      name: activeCrop.name,
-      target_ph_min: activeCrop.target_ph_min,
-      target_ph_max: activeCrop.target_ph_max,
-      target_ec_min: activeCrop.target_ec_min,
-      target_ec_max: activeCrop.target_ec_max,
+      name: crop.name,
+      target_ph_min: crop.target_ph_min,
+      target_ph_max: crop.target_ph_max,
+      target_ec_min: crop.target_ec_min,
+      target_ec_max: crop.target_ec_max,
     })
+  }
+
+  const toggleReservoirCrop = (id: number) => {
+    if (reservoirCropIdSet.has(id)) {
+      if (reservoirCropIds.length === 1) return
+      onReservoirCropsChange(
+        reservoirCropIds.filter((cropId) => cropId !== id),
+      )
+      return
+    }
+
+    onReservoirCropsChange([...reservoirCropIds, id])
   }
 
   const updateCropDraft = (key: keyof CropDraft, value: string) => {
@@ -105,7 +127,7 @@ export default function SettingsScreen({
       await db.crops.update(editingCropId, normalized)
     } else {
       const id = await db.crops.add(normalized)
-      onActiveCropChange(id)
+      onReservoirCropsChange([...reservoirCropIds, id])
     }
     setCropDraft(null)
   }
@@ -126,46 +148,73 @@ export default function SettingsScreen({
       <ScreenHeader title="Settings" />
 
       <section className="settings-section">
-        <h2>Active crop</h2>
-        <label className="crop-selector">
-          <Leaf size={27} color="#4a9b66" aria-hidden="true" />
-          <span className="sr-only">Select active crop</span>
-          <select
-            value={activeCropId}
-            onChange={(event) => onActiveCropChange(Number(event.target.value))}
-          >
-            {crops.map((crop) => (
-              <option key={crop.id} value={crop.id}>
-                {crop.name}
-              </option>
-            ))}
-          </select>
-          <ChevronRight size={20} aria-hidden="true" />
-        </label>
+        <h2>Crops in this reservoir</h2>
+        <p className="settings-helper">
+          Select once. Every daily reading applies to all selected crops.
+        </p>
+        <div className="crop-membership-list">
+          {crops.map((crop) => {
+            const selected = reservoirCropIdSet.has(crop.id)
+            const isOnlySelectedCrop = selected && reservoirCropIds.length === 1
+
+            return (
+              <article className="crop-membership-row" key={crop.id}>
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={selected}
+                    disabled={isOnlySelectedCrop}
+                    onChange={() => toggleReservoirCrop(crop.id)}
+                  />
+                  <Leaf size={22} aria-hidden="true" />
+                  <span>
+                    <strong>{crop.name}</strong>
+                    <small>
+                      pH {crop.target_ph_min.toFixed(1)}–{crop.target_ph_max.toFixed(1)} · EC{' '}
+                      {crop.target_ec_min.toFixed(1)}–{crop.target_ec_max.toFixed(1)}
+                    </small>
+                  </span>
+                </label>
+                <button
+                  type="button"
+                  className="crop-edit-button"
+                  aria-label={`Edit ${crop.name}`}
+                  onClick={() => openEditCrop(crop)}
+                >
+                  <Pencil size={18} aria-hidden="true" />
+                </button>
+              </article>
+            )
+          })}
+        </div>
+        <p className="settings-footnote">At least one crop must remain selected.</p>
       </section>
 
       <section className="settings-section">
         <div className="section-heading-row">
-          <h2>Crop thresholds</h2>
-          <button type="button" className="text-button" onClick={openEditCrop}>
-            <Pencil size={17} aria-hidden="true" /> Edit
-          </button>
+          <h2>Shared safe range</h2>
         </div>
+        {!sharedThresholds?.compatible ? (
+          <div className="range-conflict" role="alert">
+            No complete overlap. Edit crop thresholds or remove an incompatible
+            crop from this reservoir.
+          </div>
+        ) : null}
         <div className="settings-list">
           <div className="settings-row">
             <span>pH range</span>
             <strong>
-              {activeCrop
-                ? `${activeCrop.target_ph_min.toFixed(1)} – ${activeCrop.target_ph_max.toFixed(1)}`
-                : '—'}
+              {sharedThresholds?.ph.compatible
+                ? `${sharedThresholds.ph.minimum.toFixed(1)} – ${sharedThresholds.ph.maximum.toFixed(1)}`
+                : 'No overlap'}
             </strong>
           </div>
           <div className="settings-row">
             <span>EC range (mS/cm)</span>
             <strong>
-              {activeCrop
-                ? `${activeCrop.target_ec_min.toFixed(1)} – ${activeCrop.target_ec_max.toFixed(1)}`
-                : '—'}
+              {sharedThresholds?.ec.compatible
+                ? `${sharedThresholds.ec.minimum.toFixed(2)} – ${sharedThresholds.ec.maximum.toFixed(2)}`
+                : 'No overlap'}
             </strong>
           </div>
         </div>

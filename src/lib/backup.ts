@@ -6,9 +6,10 @@ import {
   type SeedlingBatch,
 } from '../db/database'
 import { toLocalDateString } from './dates'
+import { getPropagationDefaults } from './seedlings'
 
 const BACKUP_FORMAT = 'hydroponic-reservoir-backup'
-const BACKUP_VERSION = 2
+const BACKUP_VERSION = 3
 
 export interface ReservoirBackup {
   format: typeof BACKUP_FORMAT
@@ -97,7 +98,21 @@ function isMaintenanceTask(value: unknown): value is MaintenanceTask {
     && isLocalDate(value.last_completed_date)
 }
 
-function isSeedlingBatch(value: unknown): value is SeedlingBatch {
+type LegacySeedlingBatch = Omit<
+  SeedlingBatch,
+  | 'propagation_ph_min'
+  | 'propagation_ph_max'
+  | 'propagation_ec_target'
+  | 'propagation_ph'
+  | 'propagation_ec'
+  | 'solution_checked_at'
+  | 'plug_evenly_moist'
+  | 'complete_nutrient_prepared'
+  | 'dome_removed'
+  | 'light_provided'
+>
+
+function isLegacySeedlingBatch(value: unknown): value is LegacySeedlingBatch {
   if (!isRecord(value)) return false
   const validStatuses = new Set([
     'sown',
@@ -138,9 +153,40 @@ function isSeedlingBatch(value: unknown): value is SeedlingBatch {
     && value.updated_at > 0
 }
 
+function isSeedlingBatch(value: unknown): value is SeedlingBatch {
+  if (!isLegacySeedlingBatch(value) || !isRecord(value)) return false
+  const record = value as unknown as Record<string, unknown>
+  const phTargetsValid = (
+    record.propagation_ph_min === null
+    && record.propagation_ph_max === null
+  ) || (
+    isFiniteNumber(record.propagation_ph_min)
+    && isFiniteNumber(record.propagation_ph_max)
+    && record.propagation_ph_min >= 0
+    && record.propagation_ph_max <= 14
+    && record.propagation_ph_min < record.propagation_ph_max
+  )
+  return phTargetsValid
+    && (record.propagation_ec_target === null
+      || (isFiniteNumber(record.propagation_ec_target) && record.propagation_ec_target >= 0))
+    && (record.propagation_ph === null
+      || (isFiniteNumber(record.propagation_ph) && record.propagation_ph >= 0 && record.propagation_ph <= 14))
+    && (record.propagation_ec === null
+      || (isFiniteNumber(record.propagation_ec) && record.propagation_ec >= 0))
+    && (record.solution_checked_at === null
+      || (isFiniteNumber(record.solution_checked_at) && record.solution_checked_at > 0))
+    && typeof record.plug_evenly_moist === 'boolean'
+    && typeof record.complete_nutrient_prepared === 'boolean'
+    && typeof record.dome_removed === 'boolean'
+    && typeof record.light_provided === 'boolean'
+}
+
 function validateBackup(value: unknown): void {
   if (!isRecord(value)) throw new Error('The selected file is not a backup object.')
-  if (value.format !== BACKUP_FORMAT || (value.version !== 1 && value.version !== BACKUP_VERSION)) {
+  if (
+    value.format !== BACKUP_FORMAT
+    || (value.version !== 1 && value.version !== 2 && value.version !== BACKUP_VERSION)
+  ) {
     throw new Error('This backup format or version is not supported.')
   }
   if (
@@ -161,9 +207,12 @@ function validateBackup(value: unknown): void {
     throw new Error('The backup contains an invalid maintenance task.')
   }
   if (!hasUniqueIds(value.tasks)) throw new Error('The backup contains duplicate task IDs.')
+  const seedlingValidator = value.version === BACKUP_VERSION
+    ? isSeedlingBatch
+    : isLegacySeedlingBatch
   if (
-    value.version === BACKUP_VERSION
-    && (!Array.isArray(value.seedling_batches) || !value.seedling_batches.every(isSeedlingBatch))
+    value.version !== 1
+    && (!Array.isArray(value.seedling_batches) || !value.seedling_batches.every(seedlingValidator))
   ) {
     throw new Error('The backup contains an invalid seedling batch.')
   }
@@ -203,13 +252,31 @@ export function parseReservoirBackup(contents: string): ReservoirBackup {
   }
   validateBackup(parsed)
   const backup = parsed as Omit<ReservoirBackup, 'version' | 'seedling_batches'> & {
-    version: 1 | 2
-    seedling_batches?: SeedlingBatch[]
+    version: 1 | 2 | 3
+    seedling_batches?: Array<SeedlingBatch | LegacySeedlingBatch>
   }
+  const cropNames = new Map(backup.crops.map((crop) => [crop.id, crop.name]))
+  const seedlingBatches = (backup.seedling_batches ?? []).map((batch) => {
+    if (backup.version === BACKUP_VERSION) return batch as SeedlingBatch
+    const defaults = getPropagationDefaults(cropNames.get(batch.crop_id) ?? '')
+    return {
+      ...batch,
+      propagation_ph_min: defaults.phMin,
+      propagation_ph_max: defaults.phMax,
+      propagation_ec_target: defaults.ecTarget,
+      propagation_ph: null,
+      propagation_ec: null,
+      solution_checked_at: null,
+      plug_evenly_moist: false,
+      complete_nutrient_prepared: false,
+      dome_removed: false,
+      light_provided: false,
+    }
+  })
   return {
     ...backup,
     version: BACKUP_VERSION,
-    seedling_batches: backup.seedling_batches ?? [],
+    seedling_batches: seedlingBatches,
   }
 }
 

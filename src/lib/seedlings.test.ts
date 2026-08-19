@@ -4,6 +4,8 @@ import {
   deriveSeedlingStage,
   germinationRate,
   getBatchDay,
+  getCareCriteria,
+  getPropagationDefaults,
   getReadinessCriteria,
   suggestedTrueLeaves,
 } from './seedlings'
@@ -22,6 +24,16 @@ const batch: SeedlingBatch = {
   roots_visible: true,
   plug_stable: true,
   healthy: true,
+  propagation_ph_min: 5.5,
+  propagation_ph_max: 6,
+  propagation_ec_target: 1,
+  propagation_ph: 5.8,
+  propagation_ec: 1,
+  solution_checked_at: new Date(2026, 7, 3, 10).getTime(),
+  plug_evenly_moist: true,
+  complete_nutrient_prepared: true,
+  dome_removed: true,
+  light_provided: true,
   status: 'ready',
   transferred_at: null,
   transferred_count: 0,
@@ -35,6 +47,29 @@ describe('seedling guidance', () => {
   it('uses a source-backed lettuce leaf target and a customizable generic default', () => {
     expect(suggestedTrueLeaves('Butterhead Lettuce')).toBe(3)
     expect(suggestedTrueLeaves('Basil')).toBe(2)
+  })
+
+  it('provides source-backed lettuce propagation targets without guessing for other crops', () => {
+    expect(getPropagationDefaults('Butterhead Lettuce')).toMatchObject({
+      phMin: 5.5,
+      phMax: 6,
+      ecTarget: 1,
+      temperatureC: 20,
+      minimumHumidity: 88,
+    })
+    expect(getPropagationDefaults('Basil')).toMatchObject({
+      phMin: null,
+      phMax: null,
+      ecTarget: null,
+    })
+  })
+
+  it('evaluates germination care separately from transfer readiness', () => {
+    expect(getCareCriteria(batch).every((item) => item.met)).toBe(true)
+    expect(getCareCriteria({ ...batch, propagation_ec: 0.95 }))
+      .toContainEqual(expect.objectContaining({ id: 'ec', met: true }))
+    expect(getCareCriteria({ ...batch, propagation_ec: 0.9 }))
+      .toContainEqual(expect.objectContaining({ id: 'ec', met: false }))
   })
 
   it('requires every observable criterion before marking a batch ready', () => {

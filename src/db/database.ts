@@ -49,6 +49,16 @@ export interface SeedlingBatch {
   roots_visible: boolean
   plug_stable: boolean
   healthy: boolean
+  propagation_ph_min: number | null
+  propagation_ph_max: number | null
+  propagation_ec_target: number | null
+  propagation_ph: number | null
+  propagation_ec: number | null
+  solution_checked_at: number | null
+  plug_evenly_moist: boolean
+  complete_nutrient_prepared: boolean
+  dome_removed: boolean
+  light_provided: boolean
   status: SeedlingStage
   transferred_at: number | null
   transferred_count: number
@@ -92,3 +102,33 @@ db.version(3).stores({
   tasks: '++id',
   seedling_batches: '++id,crop_id,sown_at,status',
 })
+
+db.version(4)
+  .stores({
+    crops: '++id',
+    logs: '++id,timestamp',
+    tasks: '++id',
+    seedling_batches: '++id,crop_id,sown_at,status',
+  })
+  .upgrade(async (transaction) => {
+    const crops = await transaction.table<Crop>('crops').toArray()
+    const cropNames = new Map(crops.map((crop) => [crop.id, crop.name]))
+    await transaction
+      .table<SeedlingBatch>('seedling_batches')
+      .toCollection()
+      .modify((batch) => {
+        const isLettuce = (cropNames.get(batch.crop_id) ?? '')
+          .toLocaleLowerCase()
+          .includes('lettuce')
+        batch.propagation_ph_min ??= isLettuce ? 5.5 : null
+        batch.propagation_ph_max ??= isLettuce ? 6 : null
+        batch.propagation_ec_target ??= isLettuce ? 1 : null
+        batch.propagation_ph ??= null
+        batch.propagation_ec ??= null
+        batch.solution_checked_at ??= null
+        batch.plug_evenly_moist ??= false
+        batch.complete_nutrient_prepared ??= false
+        batch.dome_removed ??= false
+        batch.light_provided ??= false
+      })
+  })

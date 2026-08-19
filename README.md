@@ -16,6 +16,9 @@ An iPhone-first, offline PWA for monitoring one hydroponic reservoir. All behavi
 - Recurring maintenance tasks with deterministic due dates
 - Seedling batch tracking from sowing through NFT transfer, including
   germination rate, true-leaf count, root/plug/health checks, and history
+- Stage-specific propagation care checks with sourced lettuce targets (pH
+  5.5–6.0 and EC 1.0 mS/cm), timestamped solution readings, moisture, nutrient,
+  dome, and light confirmations
 - Dexie/IndexedDB persistence and Workbox precaching for offline use
 - iOS standalone metadata, safe-area layout, and generated PWA icons
 
@@ -152,7 +155,8 @@ IndexedDB database: `HydroponicReservoirDB`
 Reservoir crop membership is stored separately in versioned local storage under
 `hydroponic.reservoirCropIds.v1`. Existing installs migrate their previous
 active crop without silently changing its thresholds. Database version 3 adds
-seedling batches without modifying existing readings, crops, or tasks.
+seedling batches, and version 4 adds propagation-care fields without modifying
+existing readings, crops, or tasks.
 
 ## Visual reference
 

@@ -11,6 +11,7 @@ import {
   XCircle,
 } from 'lucide-react'
 import { Modal } from '../components/Modal'
+import { PropagationCare } from '../components/PropagationCare'
 import { ScreenHeader } from '../components/ScreenHeader'
 import { db, type SeedlingBatch } from '../db/database'
 import {
@@ -23,6 +24,7 @@ import {
   germinationRate,
   getBatchDay,
   getNextSeedlingAction,
+  getPropagationDefaults,
   getReadinessCriteria,
   isReadyForTransfer,
   suggestedTrueLeaves,
@@ -146,6 +148,7 @@ export default function SeedlingsScreen() {
     ) return
 
     const now = Date.now()
+    const propagation = getPropagationDefaults(cropMap.get(newBatch.cropId) ?? '')
     await db.seedling_batches.add({
       crop_id: newBatch.cropId,
       cultivar: newBatch.cultivar.trim(),
@@ -159,6 +162,16 @@ export default function SeedlingsScreen() {
       roots_visible: false,
       plug_stable: false,
       healthy: false,
+      propagation_ph_min: propagation.phMin,
+      propagation_ph_max: propagation.phMax,
+      propagation_ec_target: propagation.ecTarget,
+      propagation_ph: null,
+      propagation_ec: null,
+      solution_checked_at: null,
+      plug_evenly_moist: false,
+      complete_nutrient_prepared: false,
+      dome_removed: false,
+      light_provided: false,
       status: 'sown',
       transferred_at: null,
       transferred_count: 0,
@@ -546,6 +559,12 @@ export default function SeedlingsScreen() {
                   <p className="progress-placeholder">Keep plugs evenly moist, not flooded. Record emergence when seedlings are visible.</p>
                 )}
               </section>
+
+              <PropagationCare
+                batch={editingBatch}
+                cropName={editingCropName}
+                onChange={setEditingBatch}
+              />
 
               <section className="progress-section">
                 <h3>Transfer readiness</h3>

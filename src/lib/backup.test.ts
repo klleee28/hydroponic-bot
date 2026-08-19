@@ -58,6 +58,16 @@ const seedlingBatch: SeedlingBatch = {
   roots_visible: false,
   plug_stable: false,
   healthy: false,
+  propagation_ph_min: 5.5,
+  propagation_ph_max: 6,
+  propagation_ec_target: 1,
+  propagation_ph: null,
+  propagation_ec: null,
+  solution_checked_at: null,
+  plug_evenly_moist: false,
+  complete_nutrient_prepared: false,
+  dome_removed: false,
+  light_provided: false,
   status: 'sown',
   transferred_at: null,
   transferred_count: 0,
@@ -70,7 +80,7 @@ const seedlingBatch: SeedlingBatch = {
 function validBackup(): ReservoirBackup {
   return {
     format: 'hydroponic-reservoir-backup',
-    version: 2,
+    version: 3,
     exported_at: '2026-08-18T08:00:00.000Z',
     crops: [crop],
     logs: [log],
@@ -137,8 +147,39 @@ describe('reservoir backup', () => {
     delete legacy.seedling_batches
 
     const parsed = parseReservoirBackup(JSON.stringify(legacy))
-    expect(parsed.version).toBe(2)
+    expect(parsed.version).toBe(3)
     expect(parsed.seedling_batches).toEqual([])
+  })
+
+  it('upgrades version 2 seedling batches with propagation defaults', () => {
+    const backup = validBackup()
+    const legacyBatch = { ...backup.seedling_batches[0] } as Record<string, unknown>
+    for (const key of [
+      'propagation_ph_min',
+      'propagation_ph_max',
+      'propagation_ec_target',
+      'propagation_ph',
+      'propagation_ec',
+      'solution_checked_at',
+      'plug_evenly_moist',
+      'complete_nutrient_prepared',
+      'dome_removed',
+      'light_provided',
+    ]) delete legacyBatch[key]
+    const legacy = {
+      ...backup,
+      version: 2,
+      seedling_batches: [legacyBatch],
+    }
+
+    const parsed = parseReservoirBackup(JSON.stringify(legacy))
+    expect(parsed.seedling_batches[0]).toMatchObject({
+      propagation_ph_min: 5.5,
+      propagation_ph_max: 6,
+      propagation_ec_target: 1,
+      propagation_ph: null,
+      propagation_ec: null,
+    })
   })
 
   it('rejects malformed JSON and missing reservoir crops', () => {

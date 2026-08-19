@@ -1895,6 +1895,219 @@ textarea:focus-visible {
   white-space: pre-wrap;
 }
 
+.propagation-care .section-heading-row > div {
+  min-width: 0;
+}
+
+.propagation-care .section-heading-row p {
+  margin: 2px 0 0;
+  color: var(--muted);
+  font-size: 0.7rem;
+}
+
+.propagation-preset {
+  display: grid;
+  grid-template-columns: 29px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 9px;
+  margin-bottom: 10px;
+  padding: 11px;
+  border: 1px solid #b8d9c1;
+  border-radius: 9px;
+  background: var(--green-bg);
+  color: var(--green);
+}
+
+.propagation-preset > div {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+}
+
+.propagation-preset strong {
+  color: var(--ink);
+  font-size: 0.8rem;
+}
+
+.propagation-preset span {
+  font-size: 0.72rem;
+  font-weight: 720;
+}
+
+.propagation-preset small {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 2px;
+  color: #506b58;
+  font-size: 0.65rem;
+}
+
+.propagation-preset a {
+  color: var(--teal-dark);
+  font-size: 0.7rem;
+  font-weight: 740;
+}
+
+.custom-propagation-note {
+  margin: 0 0 10px;
+  padding: 11px;
+  border-radius: 9px;
+  background: var(--amber-bg);
+  color: #705126;
+  font-size: 0.72rem;
+  line-height: 1.45;
+}
+
+.propagation-targets {
+  margin-bottom: 10px;
+  padding: 0 11px;
+  border: 1px solid var(--line-strong);
+  border-radius: 9px;
+}
+
+.propagation-targets summary {
+  min-height: 45px;
+  padding: 13px 0 10px;
+  color: var(--teal-dark);
+  font-size: 0.76rem;
+  font-weight: 740;
+  cursor: pointer;
+}
+
+.propagation-targets > div {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  padding-bottom: 10px;
+}
+
+.propagation-targets label {
+  display: grid;
+  gap: 5px;
+}
+
+.propagation-targets label span {
+  color: var(--muted);
+  font-size: 0.65rem;
+  font-weight: 680;
+}
+
+.propagation-targets input {
+  width: 100%;
+  min-height: 43px;
+  padding: 0 7px;
+  border: 1px solid var(--line-strong);
+  border-radius: 7px;
+  color: var(--ink);
+  font-size: 16px;
+  text-align: center;
+}
+
+.propagation-targets > small {
+  display: block;
+  padding: 0 0 10px;
+  color: var(--red);
+  font-size: 0.67rem;
+}
+
+.care-check-list {
+  overflow: hidden;
+  margin-bottom: 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: 10px;
+}
+
+.propagation-steppers {
+  overflow: hidden;
+  border: 1px solid var(--line-strong);
+  border-radius: 10px;
+}
+
+.propagation-steppers .stepper-row {
+  grid-template-columns: 52px 46px minmax(56px, 1fr) 46px 68px;
+  gap: 4px;
+  padding-inline: 9px;
+}
+
+.propagation-steppers .stepper-button {
+  width: 46px;
+  height: 46px;
+}
+
+.propagation-steppers .status-pill {
+  padding-inline: 5px;
+  font-size: 0.62rem;
+}
+
+.solution-check-time {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin: 7px 2px 10px;
+  color: var(--muted);
+  font-size: 0.67rem;
+}
+
+.record-solution-button {
+  display: flex;
+  width: 100%;
+  min-height: 48px;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  margin-bottom: 10px;
+  border: 1px solid var(--teal);
+  border-radius: 9px;
+  background: #fff;
+  color: var(--teal);
+  font-size: 0.78rem;
+  font-weight: 740;
+}
+
+.record-solution-button:disabled {
+  border-color: var(--line-strong);
+  color: var(--muted);
+  opacity: 0.65;
+}
+
+.care-criteria-summary {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.care-criteria-summary > div {
+  display: grid;
+  min-height: 42px;
+  grid-template-columns: 20px minmax(0, 1fr);
+  align-items: center;
+  gap: 6px;
+  padding: 7px 8px;
+  border-radius: 8px;
+  background: var(--surface-subtle);
+  color: #8a979b;
+}
+
+.care-criteria-summary > .is-complete {
+  background: var(--green-bg);
+  color: var(--green);
+}
+
+.care-criteria-summary span {
+  color: var(--ink);
+  font-size: 0.67rem;
+  font-weight: 650;
+  line-height: 1.3;
+}
+
+.care-not-transfer-rule {
+  margin: 9px 2px 0;
+  color: var(--muted);
+  font-size: 0.66rem;
+  line-height: 1.4;
+}
+
 .form-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;

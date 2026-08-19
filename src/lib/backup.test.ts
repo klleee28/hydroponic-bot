@@ -1,6 +1,12 @@
 import 'fake-indexeddb/auto'
 import { beforeEach, describe, expect, it } from 'vitest'
-import { db, type Crop, type MaintenanceTask, type ReservoirLog } from '../db/database'
+import {
+  db,
+  type Crop,
+  type MaintenanceTask,
+  type ReservoirLog,
+  type SeedlingBatch,
+} from '../db/database'
 import {
   backupFileName,
   createLogsCsv,
@@ -38,22 +44,51 @@ const task: MaintenanceTask = {
   last_completed_date: '2026-08-18',
 }
 
+const seedlingBatch: SeedlingBatch = {
+  id: 13,
+  crop_id: crop.id,
+  cultivar: 'Butterhead',
+  quantity_sown: 12,
+  plug_medium: 'Rockwool',
+  sown_at: new Date(2026, 7, 18, 7, 30).getTime(),
+  emerged_at: null,
+  germinated_count: 0,
+  true_leaf_count: 0,
+  target_true_leaves: 3,
+  roots_visible: false,
+  plug_stable: false,
+  healthy: false,
+  status: 'sown',
+  transferred_at: null,
+  transferred_count: 0,
+  channel_name: '',
+  root_contact_confirmed: false,
+  notes: '',
+  updated_at: new Date(2026, 7, 18, 7, 30).getTime(),
+}
+
 function validBackup(): ReservoirBackup {
   return {
     format: 'hydroponic-reservoir-backup',
-    version: 1,
+    version: 2,
     exported_at: '2026-08-18T08:00:00.000Z',
     crops: [crop],
     logs: [log],
     tasks: [task],
+    seedling_batches: [seedlingBatch],
     reservoir_crop_ids: [crop.id],
   }
 }
 
 describe('reservoir backup', () => {
   beforeEach(async () => {
-    await db.transaction('rw', [db.crops, db.logs, db.tasks], async () => {
-      await Promise.all([db.crops.clear(), db.logs.clear(), db.tasks.clear()])
+    await db.transaction('rw', [db.crops, db.logs, db.tasks, db.seedling_batches], async () => {
+      await Promise.all([
+        db.crops.clear(),
+        db.logs.clear(),
+        db.tasks.clear(),
+        db.seedling_batches.clear(),
+      ])
     })
   })
 
@@ -62,6 +97,7 @@ describe('reservoir backup', () => {
       db.crops.add(crop),
       db.logs.add(log),
       db.tasks.add(task),
+      db.seedling_batches.add(seedlingBatch),
     ])
 
     const backup = await createReservoirBackup(
@@ -80,6 +116,7 @@ describe('reservoir backup', () => {
     expect(await db.crops.toArray()).toEqual([crop])
     expect(await db.logs.toArray()).toEqual([log])
     expect(await db.tasks.toArray()).toEqual([task])
+    expect(await db.seedling_batches.toArray()).toEqual([seedlingBatch])
   })
 
   it('restores older backups without edit timestamps', async () => {
@@ -92,6 +129,16 @@ describe('reservoir backup', () => {
       .toBeUndefined()
     await restoreReservoirBackup(backup)
     expect((await db.logs.get(log.id))?.updated_at).toBe(log.timestamp)
+  })
+
+  it('upgrades version 1 backups with an empty seedling collection', () => {
+    const backup = validBackup()
+    const legacy = { ...backup, version: 1 } as Record<string, unknown>
+    delete legacy.seedling_batches
+
+    const parsed = parseReservoirBackup(JSON.stringify(legacy))
+    expect(parsed.version).toBe(2)
+    expect(parsed.seedling_batches).toEqual([])
   })
 
   it('rejects malformed JSON and missing reservoir crops', () => {

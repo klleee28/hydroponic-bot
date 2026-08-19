@@ -27,10 +27,42 @@ export interface MaintenanceTask {
   last_completed_date: string | null
 }
 
+export type SeedlingStage =
+  | 'sown'
+  | 'germinated'
+  | 'seedling'
+  | 'ready'
+  | 'transferred'
+  | 'discarded'
+
+export interface SeedlingBatch {
+  id: number
+  crop_id: number
+  cultivar: string
+  quantity_sown: number
+  plug_medium: string
+  sown_at: number
+  emerged_at: number | null
+  germinated_count: number
+  true_leaf_count: number
+  target_true_leaves: number
+  roots_visible: boolean
+  plug_stable: boolean
+  healthy: boolean
+  status: SeedlingStage
+  transferred_at: number | null
+  transferred_count: number
+  channel_name: string
+  root_contact_confirmed: boolean
+  notes: string
+  updated_at: number
+}
+
 export const db = new Dexie('HydroponicReservoirDB') as Dexie & {
   crops: EntityTable<Crop, 'id'>
   logs: EntityTable<ReservoirLog, 'id'>
   tasks: EntityTable<MaintenanceTask, 'id'>
+  seedling_batches: EntityTable<SeedlingBatch, 'id'>
 }
 
 db.version(1).stores({
@@ -53,3 +85,10 @@ db.version(2)
         log.updated_at ??= log.timestamp
       }),
   )
+
+db.version(3).stores({
+  crops: '++id',
+  logs: '++id,timestamp',
+  tasks: '++id',
+  seedling_batches: '++id,crop_id,sown_at,status',
+})

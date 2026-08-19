@@ -3,11 +3,12 @@ import {
   type Crop,
   type MaintenanceTask,
   type ReservoirLog,
+  type SeedlingBatch,
 } from '../db/database'
 import { toLocalDateString } from './dates'
 
 const BACKUP_FORMAT = 'hydroponic-reservoir-backup'
-const BACKUP_VERSION = 1
+const BACKUP_VERSION = 2
 
 export interface ReservoirBackup {
   format: typeof BACKUP_FORMAT
@@ -16,6 +17,7 @@ export interface ReservoirBackup {
   crops: Crop[]
   logs: ReservoirLog[]
   tasks: MaintenanceTask[]
+  seedling_batches: SeedlingBatch[]
   reservoir_crop_ids: number[]
 }
 
@@ -95,9 +97,50 @@ function isMaintenanceTask(value: unknown): value is MaintenanceTask {
     && isLocalDate(value.last_completed_date)
 }
 
-function assertBackup(value: unknown): asserts value is ReservoirBackup {
+function isSeedlingBatch(value: unknown): value is SeedlingBatch {
+  if (!isRecord(value)) return false
+  const validStatuses = new Set([
+    'sown',
+    'germinated',
+    'seedling',
+    'ready',
+    'transferred',
+    'discarded',
+  ])
+  return isPositiveInteger(value.id)
+    && isPositiveInteger(value.crop_id)
+    && typeof value.cultivar === 'string'
+    && isPositiveInteger(value.quantity_sown)
+    && typeof value.plug_medium === 'string'
+    && value.plug_medium.trim().length > 0
+    && isFiniteNumber(value.sown_at)
+    && value.sown_at > 0
+    && (value.emerged_at === null || (isFiniteNumber(value.emerged_at) && value.emerged_at > 0))
+    && Number.isInteger(value.germinated_count)
+    && Number(value.germinated_count) >= 0
+    && Number(value.germinated_count) <= Number(value.quantity_sown)
+    && Number.isInteger(value.true_leaf_count)
+    && Number(value.true_leaf_count) >= 0
+    && isPositiveInteger(value.target_true_leaves)
+    && typeof value.roots_visible === 'boolean'
+    && typeof value.plug_stable === 'boolean'
+    && typeof value.healthy === 'boolean'
+    && typeof value.status === 'string'
+    && validStatuses.has(value.status)
+    && (value.transferred_at === null
+      || (isFiniteNumber(value.transferred_at) && value.transferred_at > 0))
+    && Number.isInteger(value.transferred_count)
+    && Number(value.transferred_count) >= 0
+    && typeof value.channel_name === 'string'
+    && typeof value.root_contact_confirmed === 'boolean'
+    && typeof value.notes === 'string'
+    && isFiniteNumber(value.updated_at)
+    && value.updated_at > 0
+}
+
+function validateBackup(value: unknown): void {
   if (!isRecord(value)) throw new Error('The selected file is not a backup object.')
-  if (value.format !== BACKUP_FORMAT || value.version !== BACKUP_VERSION) {
+  if (value.format !== BACKUP_FORMAT || (value.version !== 1 && value.version !== BACKUP_VERSION)) {
     throw new Error('This backup format or version is not supported.')
   }
   if (
@@ -119,6 +162,15 @@ function assertBackup(value: unknown): asserts value is ReservoirBackup {
   }
   if (!hasUniqueIds(value.tasks)) throw new Error('The backup contains duplicate task IDs.')
   if (
+    value.version === BACKUP_VERSION
+    && (!Array.isArray(value.seedling_batches) || !value.seedling_batches.every(isSeedlingBatch))
+  ) {
+    throw new Error('The backup contains an invalid seedling batch.')
+  }
+  if (Array.isArray(value.seedling_batches) && !hasUniqueIds(value.seedling_batches)) {
+    throw new Error('The backup contains duplicate seedling batch IDs.')
+  }
+  if (
     !Array.isArray(value.reservoir_crop_ids)
     || !value.reservoir_crop_ids.length
     || !value.reservoir_crop_ids.every(isPositiveInteger)
@@ -134,6 +186,12 @@ function assertBackup(value: unknown): asserts value is ReservoirBackup {
   if (!value.reservoir_crop_ids.every((id) => cropIds.has(id))) {
     throw new Error('The backup selects a crop that is not included in the file.')
   }
+  if (
+    Array.isArray(value.seedling_batches)
+    && value.seedling_batches.some((batch) => !cropIds.has(batch.crop_id))
+  ) {
+    throw new Error('The backup contains a seedling batch for a missing crop.')
+  }
 }
 
 export function parseReservoirBackup(contents: string): ReservoirBackup {
@@ -143,18 +201,27 @@ export function parseReservoirBackup(contents: string): ReservoirBackup {
   } catch {
     throw new Error('The selected file is not valid JSON.')
   }
-  assertBackup(parsed)
-  return parsed
+  validateBackup(parsed)
+  const backup = parsed as Omit<ReservoirBackup, 'version' | 'seedling_batches'> & {
+    version: 1 | 2
+    seedling_batches?: SeedlingBatch[]
+  }
+  return {
+    ...backup,
+    version: BACKUP_VERSION,
+    seedling_batches: backup.seedling_batches ?? [],
+  }
 }
 
 export async function createReservoirBackup(
   reservoirCropIds: number[],
   now: Date = new Date(),
 ): Promise<ReservoirBackup> {
-  const [crops, logs, tasks] = await Promise.all([
+  const [crops, logs, tasks, seedlingBatches] = await Promise.all([
     db.crops.orderBy('id').toArray(),
     db.logs.orderBy('timestamp').toArray(),
     db.tasks.orderBy('id').toArray(),
+    db.seedling_batches.orderBy('sown_at').toArray(),
   ])
 
   return {
@@ -164,6 +231,7 @@ export async function createReservoirBackup(
     crops,
     logs,
     tasks,
+    seedling_batches: seedlingBatches,
     reservoir_crop_ids: [...reservoirCropIds],
   }
 }
@@ -171,10 +239,15 @@ export async function createReservoirBackup(
 export async function restoreReservoirBackup(
   backup: ReservoirBackup,
 ): Promise<number[]> {
-  assertBackup(backup)
+  validateBackup(backup)
 
-  await db.transaction('rw', [db.crops, db.logs, db.tasks], async () => {
-    await Promise.all([db.crops.clear(), db.logs.clear(), db.tasks.clear()])
+  await db.transaction('rw', [db.crops, db.logs, db.tasks, db.seedling_batches], async () => {
+    await Promise.all([
+      db.crops.clear(),
+      db.logs.clear(),
+      db.tasks.clear(),
+      db.seedling_batches.clear(),
+    ])
     await Promise.all([
       db.crops.bulkAdd(backup.crops),
       backup.logs.length
@@ -184,6 +257,9 @@ export async function restoreReservoirBackup(
           })))
         : Promise.resolve(),
       backup.tasks.length ? db.tasks.bulkAdd(backup.tasks) : Promise.resolve(),
+      backup.seedling_batches.length
+        ? db.seedling_batches.bulkAdd(backup.seedling_batches)
+        : Promise.resolve(),
     ])
   })
 

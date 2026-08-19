@@ -659,6 +659,7 @@ export default function SettingsScreen({
             <div><dt>Crops</dt><dd>{pendingBackup.crops.length}</dd></div>
             <div><dt>Readings</dt><dd>{pendingBackup.logs.length}</dd></div>
             <div><dt>Tasks</dt><dd>{pendingBackup.tasks.length}</dd></div>
+            <div><dt>Seedling batches</dt><dd>{pendingBackup.seedling_batches.length}</dd></div>
             <div>
               <dt>Exported</dt>
               <dd>{new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' }).format(new Date(pendingBackup.exported_at))}</dd>

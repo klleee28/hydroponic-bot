@@ -10,6 +10,7 @@ import {
 } from './lib/preferences'
 
 const DashboardScreen = lazy(() => import('./screens/DashboardScreen'))
+const SeedlingsScreen = lazy(() => import('./screens/SeedlingsScreen'))
 const LogScreen = lazy(() => import('./screens/LogScreen'))
 const SettingsScreen = lazy(() => import('./screens/SettingsScreen'))
 
@@ -76,7 +77,10 @@ function App() {
             lastBackupAt={lastBackupAt}
             onBackupCompleted={completeBackup}
             onOpenLog={() => setScreen('log')}
+            onOpenSeedlings={() => setScreen('seedlings')}
           />
+        ) : screen === 'seedlings' ? (
+          <SeedlingsScreen />
         ) : screen === 'log' ? (
           <LogScreen
             reservoirCropIds={reservoirCropIds}

@@ -6,6 +6,7 @@ import {
   Droplets,
   FlaskConical,
   Thermometer,
+  Sprout,
   Wrench,
 } from 'lucide-react'
 import { ReservoirChart } from '../components/ReservoirChart'
@@ -35,6 +36,7 @@ interface DashboardScreenProps {
   lastBackupAt: number | null
   onBackupCompleted: (timestamp: number) => void
   onOpenLog: () => void
+  onOpenSeedlings: () => void
 }
 
 const ranges = [
@@ -52,6 +54,7 @@ export default function DashboardScreen({
   lastBackupAt,
   onBackupCompleted,
   onOpenLog,
+  onOpenSeedlings,
 }: DashboardScreenProps) {
   const [rangeId, setRangeId] = useState<RangeId>('30d')
   const [chartModeOverride, setChartModeOverride] = useState<ChartMode | null>(null)
@@ -85,6 +88,11 @@ export default function DashboardScreen({
     [],
   )
   const tasks = useLiveQuery(() => db.tasks.toArray(), [], [])
+  const seedlingBatches = useLiveQuery(
+    () => db.seedling_batches.toArray(),
+    [],
+    [],
+  )
   const sharedThresholds = useMemo(
     () => getSharedCropThresholds(selectedCrops),
     [selectedCrops],
@@ -138,6 +146,11 @@ export default function DashboardScreen({
     : selectedCrops.length === 2
       ? selectedCrops.map((crop) => crop.name).join(' + ')
       : `${selectedCrops[0]?.name ?? 'Reservoir'} + ${selectedCrops.length - 1} more`
+
+  const activeSeedlings = seedlingBatches.filter(
+    (batch) => batch.status !== 'transferred' && batch.status !== 'discarded',
+  )
+  const readySeedlings = activeSeedlings.filter((batch) => batch.status === 'ready')
 
   return (
     <div className="screen">
@@ -255,6 +268,25 @@ export default function DashboardScreen({
           {nextTask ? <em>{formatDueLabel(nextTask.due)}</em> : null}
         </div>
       </section>
+
+      <button
+        type="button"
+        className="seedling-summary-card"
+        onClick={onOpenSeedlings}
+      >
+        <span className="seedling-summary-card__icon">
+          <Sprout size={27} aria-hidden="true" />
+        </span>
+        <span>
+          <small>Seedling batches</small>
+          <strong>{activeSeedlings.length} active</strong>
+          <em>
+            {readySeedlings.length
+              ? `${readySeedlings.length} ready for NFT`
+              : 'Review germination and growth'}
+          </em>
+        </span>
+      </button>
     </div>
   )
 }

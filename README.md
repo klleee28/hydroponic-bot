@@ -14,6 +14,8 @@ An iPhone-first, offline PWA for monitoring one hydroponic reservoir. All behavi
 - Offline crop preset library sourced from Oklahoma State University Extension
 - Full JSON backup/restore and spreadsheet-ready CSV reading export
 - Recurring maintenance tasks with deterministic due dates
+- Seedling batch tracking from sowing through NFT transfer, including
+  germination rate, true-leaf count, root/plug/health checks, and history
 - Dexie/IndexedDB persistence and Workbox precaching for offline use
 - iOS standalone metadata, safe-area layout, and generated PWA icons
 
@@ -59,9 +61,9 @@ growth stage, system, or water source. Custom crops remain available.
 
 Settings includes a **Backup & data** section:
 
-- **Full JSON backup** contains crops, readings, maintenance tasks, and selected
-  reservoir crops. Restore validates the complete versioned file and shows a
-  confirmation summary before replacing local data.
+- **Full JSON backup** contains crops, readings, maintenance tasks, seedling
+  batches, and selected reservoir crops. Restore validates the complete
+  versioned file and shows a confirmation summary before replacing local data.
 - **Readings CSV** contains measurement date/time, pH, EC, water temperature,
   water added, notes, and last-edit date/time for spreadsheet use.
 
@@ -145,8 +147,12 @@ IndexedDB database: `HydroponicReservoirDB`
 - `crops`: auto-incremented `id`
 - `logs`: auto-incremented `id`, indexed measurement `timestamp`, plus `updated_at`
 - `tasks`: auto-incremented `id`
+- `seedling_batches`: auto-incremented `id`, indexed by crop, sowing time, and status
 
-Reservoir crop membership is stored separately in versioned local storage under `hydroponic.reservoirCropIds.v1`, preserving the requested three-table database schema. Existing installs migrate their previous active crop without silently changing its thresholds.
+Reservoir crop membership is stored separately in versioned local storage under
+`hydroponic.reservoirCropIds.v1`. Existing installs migrate their previous
+active crop without silently changing its thresholds. Database version 3 adds
+seedling batches without modifying existing readings, crops, or tasks.
 
 ## Visual reference
 

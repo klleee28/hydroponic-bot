@@ -1858,6 +1858,37 @@ textarea:focus-visible {
   font-weight: 690;
 }
 
+.delete-record-button {
+  display: inline-flex;
+  width: 100%;
+  min-height: 46px;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  margin-top: 2px;
+  border: 1px solid #e0a29e;
+  border-radius: 9px;
+  background: #fff;
+  color: var(--red);
+  font-size: 0.76rem;
+  font-weight: 720;
+}
+
+.delete-record-button:active {
+  background: var(--red-bg);
+}
+
+.modal-delete-error {
+  margin: 2px 0 0;
+  padding: 10px 11px;
+  border-radius: 8px;
+  background: var(--red-bg);
+  color: var(--red);
+  font-size: 0.72rem;
+  font-weight: 650;
+  line-height: 1.4;
+}
+
 .transfer-form > p {
   margin-bottom: 14px;
   background: var(--surface-subtle);
@@ -1893,6 +1924,10 @@ textarea:focus-visible {
   padding-top: 12px;
   border-top: 1px solid var(--line);
   white-space: pre-wrap;
+}
+
+.batch-history-detail .delete-record-button {
+  margin-top: 18px;
 }
 
 .propagation-care .section-heading-row > div {

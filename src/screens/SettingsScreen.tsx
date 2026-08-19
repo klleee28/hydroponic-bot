@@ -11,6 +11,7 @@ import {
   Plus,
   Search,
   ShieldCheck,
+  Trash2,
   Upload,
   Wrench,
 } from 'lucide-react'
@@ -31,6 +32,10 @@ import {
 } from '../lib/cropLibrary'
 import { getSharedCropThresholds } from '../lib/thresholds'
 import { getNextBackupDueAt, isBackupDue } from '../lib/backupSchedule'
+import {
+  deleteCrop as deleteCropRecord,
+  getCropDeletionBlocker,
+} from '../lib/deletion'
 import {
   backupFileName,
   createLogsCsv,
@@ -90,6 +95,7 @@ export default function SettingsScreen({
   )
   const [cropDraft, setCropDraft] = useState<CropDraft | null>(null)
   const [editingCropId, setEditingCropId] = useState<number | null>(null)
+  const [cropDeleteError, setCropDeleteError] = useState<string | null>(null)
   const [taskDraft, setTaskDraft] = useState({ title: '', interval_days: 14 })
   const [showTaskModal, setShowTaskModal] = useState(false)
   const [showLibraryModal, setShowLibraryModal] = useState(false)
@@ -122,11 +128,13 @@ export default function SettingsScreen({
 
   const openNewCrop = () => {
     setEditingCropId(null)
+    setCropDeleteError(null)
     setCropDraft({ ...EMPTY_CROP })
   }
 
   const openEditCrop = (crop: Crop) => {
     setEditingCropId(crop.id)
+    setCropDeleteError(null)
     setCropDraft({
       name: crop.name,
       target_ph_min: crop.target_ph_min,
@@ -175,6 +183,39 @@ export default function SettingsScreen({
       onReservoirCropsChange([...reservoirCropIds, id])
     }
     setCropDraft(null)
+  }
+
+  const removeCrop = async () => {
+    if (!editingCropId) return
+    setCropDeleteError(null)
+    const blocker = await getCropDeletionBlocker(editingCropId)
+    if (blocker === 'last-crop') {
+      setCropDeleteError('Keep at least one crop in the app. Add another crop before deleting this one.')
+      return
+    }
+    if (blocker === 'seedling-batches') {
+      setCropDeleteError('This crop still has seedling batches. Delete those batches first to preserve data integrity.')
+      return
+    }
+
+    const cropName = crops.find((crop) => crop.id === editingCropId)?.name ?? 'this crop'
+    if (!window.confirm(`Permanently delete ${cropName}? This cannot be undone.`)) return
+
+    try {
+      await deleteCropRecord(editingCropId)
+      if (reservoirCropIdSet.has(editingCropId)) {
+        const remainingCrops = crops.filter((crop) => crop.id !== editingCropId)
+        const remainingSelectedIds = reservoirCropIds.filter((id) => id !== editingCropId)
+        onReservoirCropsChange(
+          remainingSelectedIds.length ? remainingSelectedIds : [remainingCrops[0].id],
+        )
+      }
+      setCropDraft(null)
+      setEditingCropId(null)
+      setDataMessage(`${cropName} deleted.`)
+    } catch (reason: unknown) {
+      setCropDeleteError(reason instanceof Error ? reason.message : 'Could not delete crop.')
+    }
   }
 
   const addLibraryCrop = async (preset: CropPreset) => {
@@ -505,7 +546,10 @@ export default function SettingsScreen({
       {cropDraft ? (
         <Modal
           title={editingCropId ? 'Edit crop' : 'Add custom crop'}
-          onClose={() => setCropDraft(null)}
+          onClose={() => {
+            setCropDraft(null)
+            setCropDeleteError(null)
+          }}
         >
           <div className="form-stack">
             <label>
@@ -560,6 +604,14 @@ export default function SettingsScreen({
             <button type="button" className="primary-button" onClick={saveCrop}>
               Save crop
             </button>
+            {editingCropId ? (
+              <button type="button" className="delete-record-button" onClick={removeCrop}>
+                <Trash2 size={18} aria-hidden="true" /> Delete crop
+              </button>
+            ) : null}
+            {cropDeleteError ? (
+              <p className="modal-delete-error" role="alert">{cropDeleteError}</p>
+            ) : null}
           </div>
         </Modal>
       ) : null}

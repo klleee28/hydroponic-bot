@@ -19,6 +19,7 @@ An iPhone-first, offline PWA for monitoring one hydroponic reservoir. All behavi
 - Stage-specific propagation care checks with sourced lettuce targets (pH
   5.5–6.0 and EC 1.0 mS/cm), timestamped solution readings, moisture, nutrient,
   dome, and light confirmations
+- Permanent crop and seedling-batch deletion with last-crop and history-integrity safeguards
 - Dexie/IndexedDB persistence and Workbox precaching for offline use
 - iOS standalone metadata, safe-area layout, and generated PWA icons
 

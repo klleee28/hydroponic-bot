@@ -8,6 +8,7 @@ import {
   Minus,
   Plus,
   Sprout,
+  Trash2,
   XCircle,
 } from 'lucide-react'
 import { Modal } from '../components/Modal'
@@ -29,6 +30,7 @@ import {
   isReadyForTransfer,
   suggestedTrueLeaves,
 } from '../lib/seedlings'
+import { deleteSeedlingBatch } from '../lib/deletion'
 
 type SeedlingView = 'active' | 'ready' | 'history'
 
@@ -254,6 +256,18 @@ export default function SeedlingsScreen() {
     setMessage('Batch moved to history.')
   }
 
+  const removeBatch = async () => {
+    if (!editingBatch) return
+    const cropName = cropMap.get(editingBatch.crop_id) ?? 'this crop'
+    if (!window.confirm(
+      `Permanently delete this ${cropName} seedling batch? This cannot be undone.`,
+    )) return
+    await deleteSeedlingBatch(editingBatch.id)
+    setTransferDraft(null)
+    setEditingBatch(null)
+    setMessage('Seedling batch deleted.')
+  }
+
   const editingCropName = editingBatch
     ? cropMap.get(editingBatch.crop_id) ?? 'Deleted crop'
     : ''
@@ -470,6 +484,9 @@ export default function SeedlingsScreen() {
                 </>
               )}
               {editingBatch.notes ? <p className="batch-history-notes">{editingBatch.notes}</p> : null}
+              <button type="button" className="delete-record-button" onClick={removeBatch}>
+                <Trash2 size={18} aria-hidden="true" /> Delete batch permanently
+              </button>
             </div>
           ) : transferDraft ? (
             <div className="transfer-form">
@@ -653,6 +670,9 @@ export default function SeedlingsScreen() {
               ) : null}
               <button type="button" className="discard-batch-button" onClick={discardBatch}>
                 Mark batch discarded
+              </button>
+              <button type="button" className="delete-record-button" onClick={removeBatch}>
+                <Trash2 size={18} aria-hidden="true" /> Delete batch permanently
               </button>
             </>
           )}

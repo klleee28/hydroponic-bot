@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import { CheckCircle2, Circle, FlaskConical, Gauge, ThermometerSun } from 'lucide-react'
 import type { SeedlingBatch } from '../db/database'
 import {
@@ -27,9 +28,9 @@ function simpleThreshold(matches: boolean): ThresholdResult {
     : { status: 'out-of-range', label: 'Out of range' }
 }
 
-function optionalNumber(value: string): number | null {
+function parseOptionalDecimal(value: string): number | null {
   if (!value.trim()) return null
-  const parsed = Number(value)
+  const parsed = Number(value.trim().replace(',', '.'))
   return Number.isFinite(parsed) ? parsed : null
 }
 
@@ -38,6 +39,51 @@ export function PropagationCare({
   cropName,
   onChange,
 }: PropagationCareProps) {
+  const [phMinInput, setPhMinInput] = useState<string>(
+    batch.propagation_ph_min !== null ? String(batch.propagation_ph_min) : '',
+  )
+  const [phMaxInput, setPhMaxInput] = useState<string>(
+    batch.propagation_ph_max !== null ? String(batch.propagation_ph_max) : '',
+  )
+  const [ecTargetInput, setEcTargetInput] = useState<string>(
+    batch.propagation_ec_target !== null ? String(batch.propagation_ec_target) : '',
+  )
+
+  useEffect(() => {
+    setPhMinInput(
+      batch.propagation_ph_min !== null ? String(batch.propagation_ph_min) : '',
+    )
+    setPhMaxInput(
+      batch.propagation_ph_max !== null ? String(batch.propagation_ph_max) : '',
+    )
+    setEcTargetInput(
+      batch.propagation_ec_target !== null ? String(batch.propagation_ec_target) : '',
+    )
+  }, [batch.id, batch.propagation_ph_min, batch.propagation_ph_max, batch.propagation_ec_target])
+
+  const handlePhMinChange = (value: string) => {
+    setPhMinInput(value)
+    onChange({
+      ...batch,
+      propagation_ph_min: parseOptionalDecimal(value),
+    })
+  }
+
+  const handlePhMaxChange = (value: string) => {
+    setPhMaxInput(value)
+    onChange({
+      ...batch,
+      propagation_ph_max: parseOptionalDecimal(value),
+    })
+  }
+
+  const handleEcTargetChange = (value: string) => {
+    setEcTargetInput(value)
+    onChange({
+      ...batch,
+      propagation_ec_target: parseOptionalDecimal(value),
+    })
+  }
   const guide = getPropagationDefaults(cropName)
   const criteria = getCareCriteria(batch)
   const completedCount = criteria.filter((criterion) => criterion.met).length
@@ -123,45 +169,25 @@ export function PropagationCare({
           <label>
             <span>pH minimum</span>
             <input
-              type="number"
               inputMode="decimal"
-              min="0"
-              max="14"
-              step="0.1"
-              value={batch.propagation_ph_min ?? ''}
-              onChange={(event) => onChange({
-                ...batch,
-                propagation_ph_min: optionalNumber(event.target.value),
-              })}
+              value={phMinInput}
+              onChange={(event) => handlePhMinChange(event.target.value)}
             />
           </label>
           <label>
             <span>pH maximum</span>
             <input
-              type="number"
               inputMode="decimal"
-              min="0"
-              max="14"
-              step="0.1"
-              value={batch.propagation_ph_max ?? ''}
-              onChange={(event) => onChange({
-                ...batch,
-                propagation_ph_max: optionalNumber(event.target.value),
-              })}
+              value={phMaxInput}
+              onChange={(event) => handlePhMaxChange(event.target.value)}
             />
           </label>
           <label>
             <span>EC target</span>
             <input
-              type="number"
               inputMode="decimal"
-              min="0"
-              step="0.05"
-              value={batch.propagation_ec_target ?? ''}
-              onChange={(event) => onChange({
-                ...batch,
-                propagation_ec_target: optionalNumber(event.target.value),
-              })}
+              value={ecTargetInput}
+              onChange={(event) => handleEcTargetChange(event.target.value)}
             />
           </label>
         </div>

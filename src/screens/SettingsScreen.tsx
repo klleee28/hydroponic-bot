@@ -37,6 +37,10 @@ import {
   getCropDeletionBlocker,
 } from '../lib/deletion'
 import {
+  validateCropInput,
+  type CropFormInput,
+} from '../lib/cropValidation'
+import {
   backupFileName,
   createLogsCsv,
   createReservoirBackup,
@@ -55,14 +59,14 @@ interface SettingsScreenProps {
   onReservoirCropsChange: (ids: number[]) => void
 }
 
-type CropDraft = Omit<Crop, 'id'>
+type CropFormState = CropFormInput
 
-const EMPTY_CROP: CropDraft = {
+const EMPTY_CROP: CropFormState = {
   name: '',
-  target_ph_min: 5.8,
-  target_ph_max: 6.4,
-  target_ec_min: 1.2,
-  target_ec_max: 1.6,
+  target_ph_min: '5.8',
+  target_ph_max: '6.4',
+  target_ec_min: '1.2',
+  target_ec_max: '1.6',
 }
 
 function formatCalendarDate(value: string): string {
@@ -93,9 +97,10 @@ export default function SettingsScreen({
     () => getSharedCropThresholds(selectedCrops),
     [selectedCrops],
   )
-  const [cropDraft, setCropDraft] = useState<CropDraft | null>(null)
+  const [cropDraft, setCropDraft] = useState<CropFormState | null>(null)
   const [editingCropId, setEditingCropId] = useState<number | null>(null)
   const [cropDeleteError, setCropDeleteError] = useState<string | null>(null)
+  const [cropValidationError, setCropValidationError] = useState<string | null>(null)
   const [taskDraft, setTaskDraft] = useState({ title: '', interval_days: 14 })
   const [showTaskModal, setShowTaskModal] = useState(false)
   const [showLibraryModal, setShowLibraryModal] = useState(false)
@@ -129,18 +134,20 @@ export default function SettingsScreen({
   const openNewCrop = () => {
     setEditingCropId(null)
     setCropDeleteError(null)
+    setCropValidationError(null)
     setCropDraft({ ...EMPTY_CROP })
   }
 
   const openEditCrop = (crop: Crop) => {
     setEditingCropId(crop.id)
     setCropDeleteError(null)
+    setCropValidationError(null)
     setCropDraft({
       name: crop.name,
-      target_ph_min: crop.target_ph_min,
-      target_ph_max: crop.target_ph_max,
-      target_ec_min: crop.target_ec_min,
-      target_ec_max: crop.target_ec_max,
+      target_ph_min: String(crop.target_ph_min),
+      target_ph_max: String(crop.target_ph_max),
+      target_ec_min: String(crop.target_ec_min),
+      target_ec_max: String(crop.target_ec_max),
     })
   }
 
@@ -156,30 +163,31 @@ export default function SettingsScreen({
     onReservoirCropsChange([...reservoirCropIds, id])
   }
 
-  const updateCropDraft = (key: keyof CropDraft, value: string) => {
+  const updateCropDraft = (key: keyof CropFormState, value: string) => {
+    setCropValidationError(null)
     setCropDraft((current) => {
       if (!current) return current
       return {
         ...current,
-        [key]: key === 'name' ? value : Number(value),
+        [key]: value,
       }
     })
   }
 
   const saveCrop = async () => {
-    if (!cropDraft || !cropDraft.name.trim()) return
-    if (
-      cropDraft.target_ph_min >= cropDraft.target_ph_max ||
-      cropDraft.target_ec_min >= cropDraft.target_ec_max
-    ) {
+    if (!cropDraft) return
+    setCropValidationError(null)
+
+    const validation = validateCropInput(cropDraft)
+    if (!validation.valid || !validation.crop) {
+      setCropValidationError(validation.error ?? 'Invalid crop input.')
       return
     }
 
-    const normalized = { ...cropDraft, name: cropDraft.name.trim() }
     if (editingCropId) {
-      await db.crops.update(editingCropId, normalized)
+      await db.crops.update(editingCropId, validation.crop)
     } else {
-      const id = await db.crops.add(normalized)
+      const id = await db.crops.add(validation.crop)
       onReservoirCropsChange([...reservoirCropIds, id])
     }
     setCropDraft(null)
@@ -549,6 +557,7 @@ export default function SettingsScreen({
           onClose={() => {
             setCropDraft(null)
             setCropDeleteError(null)
+            setCropValidationError(null)
           }}
         >
           <div className="form-stack">
@@ -608,6 +617,9 @@ export default function SettingsScreen({
               <button type="button" className="delete-record-button" onClick={removeCrop}>
                 <Trash2 size={18} aria-hidden="true" /> Delete crop
               </button>
+            ) : null}
+            {cropValidationError ? (
+              <p className="modal-delete-error" role="alert">{cropValidationError}</p>
             ) : null}
             {cropDeleteError ? (
               <p className="modal-delete-error" role="alert">{cropDeleteError}</p>

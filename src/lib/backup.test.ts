@@ -6,6 +6,9 @@ import {
   type MaintenanceTask,
   type ReservoirLog,
   type SeedlingBatch,
+  type GrowArea,
+  type GrowPosition,
+  type LayoutActivity,
 } from '../db/database'
 import {
   backupFileName,
@@ -77,27 +80,76 @@ const seedlingBatch: SeedlingBatch = {
   updated_at: new Date(2026, 7, 18, 7, 30).getTime(),
 }
 
+const growArea: GrowArea = {
+  id: 17,
+  name: 'NFT A',
+  type: 'nft-channel',
+  rows: 1,
+  columns: 4,
+  created_at: new Date(2026, 7, 18, 7, 30).getTime(),
+  updated_at: new Date(2026, 7, 18, 7, 35).getTime(),
+}
+
+const growPosition: GrowPosition = {
+  id: 19,
+  area_id: growArea.id,
+  row: 0,
+  column: 0,
+  position_code: '01',
+  crop_id: crop.id,
+  seedling_batch_id: null,
+  assigned_at: new Date(2026, 7, 18, 7, 40).getTime(),
+  updated_at: new Date(2026, 7, 18, 7, 40).getTime(),
+}
+
+const layoutActivity: LayoutActivity = {
+  id: 23,
+  action: 'assigned',
+  area_id: growArea.id,
+  area_name: growArea.name,
+  position_id: growPosition.id,
+  position_code: growPosition.position_code,
+  crop_id: crop.id,
+  seedling_batch_id: null,
+  item_label: crop.name,
+  timestamp: new Date(2026, 7, 18, 7, 40).getTime(),
+}
+
 function validBackup(): ReservoirBackup {
   return {
     format: 'hydroponic-reservoir-backup',
-    version: 3,
+    version: 4,
     exported_at: '2026-08-18T08:00:00.000Z',
     crops: [crop],
     logs: [log],
     tasks: [task],
     seedling_batches: [seedlingBatch],
+    grow_areas: [growArea],
+    grow_positions: [growPosition],
+    layout_activity: [layoutActivity],
     reservoir_crop_ids: [crop.id],
   }
 }
 
 describe('reservoir backup', () => {
   beforeEach(async () => {
-    await db.transaction('rw', [db.crops, db.logs, db.tasks, db.seedling_batches], async () => {
+    await db.transaction('rw', [
+      db.crops,
+      db.logs,
+      db.tasks,
+      db.seedling_batches,
+      db.grow_areas,
+      db.grow_positions,
+      db.layout_activity,
+    ], async () => {
       await Promise.all([
         db.crops.clear(),
         db.logs.clear(),
         db.tasks.clear(),
         db.seedling_batches.clear(),
+        db.grow_areas.clear(),
+        db.grow_positions.clear(),
+        db.layout_activity.clear(),
       ])
     })
   })
@@ -108,6 +160,9 @@ describe('reservoir backup', () => {
       db.logs.add(log),
       db.tasks.add(task),
       db.seedling_batches.add(seedlingBatch),
+      db.grow_areas.add(growArea),
+      db.grow_positions.add(growPosition),
+      db.layout_activity.add(layoutActivity),
     ])
 
     const backup = await createReservoirBackup(
@@ -127,6 +182,9 @@ describe('reservoir backup', () => {
     expect(await db.logs.toArray()).toEqual([log])
     expect(await db.tasks.toArray()).toEqual([task])
     expect(await db.seedling_batches.toArray()).toEqual([seedlingBatch])
+    expect(await db.grow_areas.toArray()).toEqual([growArea])
+    expect(await db.grow_positions.toArray()).toEqual([growPosition])
+    expect(await db.layout_activity.toArray()).toEqual([layoutActivity])
   })
 
   it('restores older backups without edit timestamps', async () => {
@@ -147,8 +205,9 @@ describe('reservoir backup', () => {
     delete legacy.seedling_batches
 
     const parsed = parseReservoirBackup(JSON.stringify(legacy))
-    expect(parsed.version).toBe(3)
+    expect(parsed.version).toBe(4)
     expect(parsed.seedling_batches).toEqual([])
+    expect(parsed.grow_areas).toEqual([])
   })
 
   it('upgrades version 2 seedling batches with propagation defaults', () => {

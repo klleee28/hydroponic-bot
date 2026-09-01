@@ -4,12 +4,15 @@ import {
   type MaintenanceTask,
   type ReservoirLog,
   type SeedlingBatch,
+  type GrowArea,
+  type GrowPosition,
+  type LayoutActivity,
 } from '../db/database'
 import { toLocalDateString } from './dates'
 import { getPropagationDefaults } from './seedlings'
 
 const BACKUP_FORMAT = 'hydroponic-reservoir-backup'
-const BACKUP_VERSION = 3
+const BACKUP_VERSION = 4
 
 export interface ReservoirBackup {
   format: typeof BACKUP_FORMAT
@@ -19,6 +22,9 @@ export interface ReservoirBackup {
   logs: ReservoirLog[]
   tasks: MaintenanceTask[]
   seedling_batches: SeedlingBatch[]
+  grow_areas: GrowArea[]
+  grow_positions: GrowPosition[]
+  layout_activity: LayoutActivity[]
   reservoir_crop_ids: number[]
 }
 
@@ -42,6 +48,10 @@ function isPositiveInteger(value: unknown): value is number {
 
 function isFiniteNumber(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value)
+}
+
+function isNonNegativeInteger(value: unknown): value is number {
+  return Number.isInteger(value) && Number(value) >= 0
 }
 
 function hasUniqueIds(items: Array<{ id: number }>): boolean {
@@ -181,11 +191,63 @@ function isSeedlingBatch(value: unknown): value is SeedlingBatch {
     && typeof record.light_provided === 'boolean'
 }
 
+function isGrowArea(value: unknown): value is GrowArea {
+  if (!isRecord(value)) return false
+  return isPositiveInteger(value.id)
+    && typeof value.name === 'string'
+    && value.name.trim().length > 0
+    && (value.type === 'nft-channel' || value.type === 'seedling-tray' || value.type === 'grid')
+    && isPositiveInteger(value.rows)
+    && value.rows <= 24
+    && isPositiveInteger(value.columns)
+    && value.columns <= 24
+    && isFiniteNumber(value.created_at)
+    && value.created_at > 0
+    && isFiniteNumber(value.updated_at)
+    && value.updated_at > 0
+}
+
+function isGrowPosition(value: unknown): value is GrowPosition {
+  if (!isRecord(value)) return false
+  const hasCrop = isPositiveInteger(value.crop_id)
+  const hasBatch = isPositiveInteger(value.seedling_batch_id)
+  return isPositiveInteger(value.id)
+    && isPositiveInteger(value.area_id)
+    && isNonNegativeInteger(value.row)
+    && isNonNegativeInteger(value.column)
+    && typeof value.position_code === 'string'
+    && value.position_code.trim().length > 0
+    && (value.crop_id === null || hasCrop)
+    && (value.seedling_batch_id === null || hasBatch)
+    && !(hasCrop && hasBatch)
+    && (value.assigned_at === null || (isFiniteNumber(value.assigned_at) && value.assigned_at > 0))
+    && isFiniteNumber(value.updated_at)
+    && value.updated_at > 0
+}
+
+function isLayoutActivity(value: unknown): value is LayoutActivity {
+  if (!isRecord(value)) return false
+  return isPositiveInteger(value.id)
+    && (value.action === 'assigned' || value.action === 'cleared')
+    && isPositiveInteger(value.area_id)
+    && typeof value.area_name === 'string'
+    && value.area_name.trim().length > 0
+    && isPositiveInteger(value.position_id)
+    && typeof value.position_code === 'string'
+    && value.position_code.trim().length > 0
+    && (value.crop_id === null || isPositiveInteger(value.crop_id))
+    && (value.seedling_batch_id === null || isPositiveInteger(value.seedling_batch_id))
+    && typeof value.item_label === 'string'
+    && value.item_label.trim().length > 0
+    && isFiniteNumber(value.timestamp)
+    && value.timestamp > 0
+}
+
 function validateBackup(value: unknown): void {
   if (!isRecord(value)) throw new Error('The selected file is not a backup object.')
   if (
     value.format !== BACKUP_FORMAT
-    || (value.version !== 1 && value.version !== 2 && value.version !== BACKUP_VERSION)
+    || (value.version !== 1 && value.version !== 2 && value.version !== 3 && value.version !== BACKUP_VERSION)
   ) {
     throw new Error('This backup format or version is not supported.')
   }
@@ -207,7 +269,7 @@ function validateBackup(value: unknown): void {
     throw new Error('The backup contains an invalid maintenance task.')
   }
   if (!hasUniqueIds(value.tasks)) throw new Error('The backup contains duplicate task IDs.')
-  const seedlingValidator = value.version === BACKUP_VERSION
+  const seedlingValidator = value.version === 3 || value.version === BACKUP_VERSION
     ? isSeedlingBatch
     : isLegacySeedlingBatch
   if (
@@ -218,6 +280,32 @@ function validateBackup(value: unknown): void {
   }
   if (Array.isArray(value.seedling_batches) && !hasUniqueIds(value.seedling_batches)) {
     throw new Error('The backup contains duplicate seedling batch IDs.')
+  }
+  if (value.version === BACKUP_VERSION) {
+    if (!Array.isArray(value.grow_areas) || !value.grow_areas.every(isGrowArea)) {
+      throw new Error('The backup contains an invalid grow layout.')
+    }
+    if (!Array.isArray(value.grow_positions) || !value.grow_positions.every(isGrowPosition)) {
+      throw new Error('The backup contains an invalid grow position.')
+    }
+    if (!Array.isArray(value.layout_activity) || !value.layout_activity.every(isLayoutActivity)) {
+      throw new Error('The backup contains invalid layout activity.')
+    }
+    if (
+      !hasUniqueIds(value.grow_areas)
+      || !hasUniqueIds(value.grow_positions)
+      || !hasUniqueIds(value.layout_activity)
+    ) {
+      throw new Error('The backup contains duplicate grow-layout IDs.')
+    }
+    const areaIds = new Set(value.grow_areas.map((area) => area.id))
+    const positionKeys = new Set(value.grow_positions.map((position) => `${position.area_id}:${position.position_code}`))
+    if (positionKeys.size !== value.grow_positions.length) {
+      throw new Error('The backup contains duplicate position codes in one layout.')
+    }
+    if (value.grow_positions.some((position) => !areaIds.has(position.area_id))) {
+      throw new Error('The backup contains a position for a missing layout.')
+    }
   }
   if (
     !Array.isArray(value.reservoir_crop_ids)
@@ -251,13 +339,16 @@ export function parseReservoirBackup(contents: string): ReservoirBackup {
     throw new Error('The selected file is not valid JSON.')
   }
   validateBackup(parsed)
-  const backup = parsed as Omit<ReservoirBackup, 'version' | 'seedling_batches'> & {
-    version: 1 | 2 | 3
+  const backup = parsed as Omit<ReservoirBackup, 'version' | 'seedling_batches' | 'grow_areas' | 'grow_positions' | 'layout_activity'> & {
+    version: 1 | 2 | 3 | 4
     seedling_batches?: Array<SeedlingBatch | LegacySeedlingBatch>
+    grow_areas?: GrowArea[]
+    grow_positions?: GrowPosition[]
+    layout_activity?: LayoutActivity[]
   }
   const cropNames = new Map(backup.crops.map((crop) => [crop.id, crop.name]))
   const seedlingBatches = (backup.seedling_batches ?? []).map((batch) => {
-    if (backup.version === BACKUP_VERSION) return batch as SeedlingBatch
+    if (backup.version === 3 || backup.version === BACKUP_VERSION) return batch as SeedlingBatch
     const defaults = getPropagationDefaults(cropNames.get(batch.crop_id) ?? '')
     return {
       ...batch,
@@ -277,6 +368,9 @@ export function parseReservoirBackup(contents: string): ReservoirBackup {
     ...backup,
     version: BACKUP_VERSION,
     seedling_batches: seedlingBatches,
+    grow_areas: backup.version === BACKUP_VERSION ? backup.grow_areas ?? [] : [],
+    grow_positions: backup.version === BACKUP_VERSION ? backup.grow_positions ?? [] : [],
+    layout_activity: backup.version === BACKUP_VERSION ? backup.layout_activity ?? [] : [],
   }
 }
 
@@ -284,11 +378,14 @@ export async function createReservoirBackup(
   reservoirCropIds: number[],
   now: Date = new Date(),
 ): Promise<ReservoirBackup> {
-  const [crops, logs, tasks, seedlingBatches] = await Promise.all([
+  const [crops, logs, tasks, seedlingBatches, growAreas, growPositions, layoutActivity] = await Promise.all([
     db.crops.orderBy('id').toArray(),
     db.logs.orderBy('timestamp').toArray(),
     db.tasks.orderBy('id').toArray(),
     db.seedling_batches.orderBy('sown_at').toArray(),
+    db.grow_areas.orderBy('id').toArray(),
+    db.grow_positions.orderBy('id').toArray(),
+    db.layout_activity.orderBy('timestamp').toArray(),
   ])
 
   return {
@@ -299,6 +396,9 @@ export async function createReservoirBackup(
     logs,
     tasks,
     seedling_batches: seedlingBatches,
+    grow_areas: growAreas,
+    grow_positions: growPositions,
+    layout_activity: layoutActivity,
     reservoir_crop_ids: [...reservoirCropIds],
   }
 }
@@ -308,12 +408,23 @@ export async function restoreReservoirBackup(
 ): Promise<number[]> {
   validateBackup(backup)
 
-  await db.transaction('rw', [db.crops, db.logs, db.tasks, db.seedling_batches], async () => {
+  await db.transaction('rw', [
+    db.crops,
+    db.logs,
+    db.tasks,
+    db.seedling_batches,
+    db.grow_areas,
+    db.grow_positions,
+    db.layout_activity,
+  ], async () => {
     await Promise.all([
       db.crops.clear(),
       db.logs.clear(),
       db.tasks.clear(),
       db.seedling_batches.clear(),
+      db.grow_areas.clear(),
+      db.grow_positions.clear(),
+      db.layout_activity.clear(),
     ])
     await Promise.all([
       db.crops.bulkAdd(backup.crops),
@@ -327,6 +438,9 @@ export async function restoreReservoirBackup(
       backup.seedling_batches.length
         ? db.seedling_batches.bulkAdd(backup.seedling_batches)
         : Promise.resolve(),
+      backup.grow_areas.length ? db.grow_areas.bulkAdd(backup.grow_areas) : Promise.resolve(),
+      backup.grow_positions.length ? db.grow_positions.bulkAdd(backup.grow_positions) : Promise.resolve(),
+      backup.layout_activity.length ? db.layout_activity.bulkAdd(backup.layout_activity) : Promise.resolve(),
     ])
   })
 

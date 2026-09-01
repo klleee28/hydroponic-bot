@@ -11,6 +11,7 @@ import {
 
 const DashboardScreen = lazy(() => import('./screens/DashboardScreen'))
 const SeedlingsScreen = lazy(() => import('./screens/SeedlingsScreen'))
+const LayoutScreen = lazy(() => import('./screens/LayoutScreen'))
 const LogScreen = lazy(() => import('./screens/LogScreen'))
 const SettingsScreen = lazy(() => import('./screens/SettingsScreen'))
 
@@ -81,6 +82,8 @@ function App() {
           />
         ) : screen === 'seedlings' ? (
           <SeedlingsScreen />
+        ) : screen === 'layout' ? (
+          <LayoutScreen />
         ) : screen === 'log' ? (
           <LogScreen
             reservoirCropIds={reservoirCropIds}

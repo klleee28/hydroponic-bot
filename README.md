@@ -16,6 +16,8 @@ An iPhone-first, offline PWA for monitoring one hydroponic reservoir. All behavi
 - Recurring maintenance tasks with deterministic due dates
 - Seedling batch tracking from sowing through NFT transfer, including
   germination rate, true-leaf count, root/plug/health checks, and history
+- Named NFT channels, seedling trays, and grow grids with numbered positions,
+  crop or active-batch placement, empty-slot counts, and local movement history
 - Stage-specific propagation care checks with sourced lettuce targets (pH
   5.5–6.0 and EC 1.0 mS/cm), timestamped solution readings, moisture, nutrient,
   dome, and light confirmations
@@ -66,7 +68,8 @@ growth stage, system, or water source. Custom crops remain available.
 Settings includes a **Backup & data** section:
 
 - **Full JSON backup** contains crops, readings, maintenance tasks, seedling
-  batches, and selected reservoir crops. Restore validates the complete
+  batches, grow layouts, their current positions, layout activity, and selected
+  reservoir crops. Restore validates the complete
   versioned file and shows a confirmation summary before replacing local data.
 - **Readings CSV** contains measurement date/time, pH, EC, water temperature,
   water added, notes, and last-edit date/time for spreadsheet use.
@@ -152,12 +155,15 @@ IndexedDB database: `HydroponicReservoirDB`
 - `logs`: auto-incremented `id`, indexed measurement `timestamp`, plus `updated_at`
 - `tasks`: auto-incremented `id`
 - `seedling_batches`: auto-incremented `id`, indexed by crop, sowing time, and status
+- `grow_areas`: named NFT channels, seedling trays, or grids
+- `grow_positions`: numbered current positions, indexed by layout, crop, and batch
+- `layout_activity`: append-only local placement and clearing history
 
 Reservoir crop membership is stored separately in versioned local storage under
 `hydroponic.reservoirCropIds.v1`. Existing installs migrate their previous
 active crop without silently changing its thresholds. Database version 3 adds
-seedling batches, and version 4 adds propagation-care fields without modifying
-existing readings, crops, or tasks.
+seedling batches, version 4 adds propagation-care fields, and version 5 adds
+grow-layout tables without modifying existing readings, crops, or tasks.
 
 ## Visual reference
 

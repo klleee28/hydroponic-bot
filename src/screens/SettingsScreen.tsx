@@ -704,14 +704,16 @@ export default function SettingsScreen({
       {pendingBackup ? (
         <Modal title="Replace local data?" onClose={() => setPendingBackup(null)}>
           <div className="restore-warning" role="alert">
-            This will replace every crop, reading, and maintenance task currently
-            stored on this device.
+            This will replace every crop, reading, maintenance task, seedling batch,
+            and grow layout currently stored on this device.
           </div>
           <dl className="backup-summary">
             <div><dt>Crops</dt><dd>{pendingBackup.crops.length}</dd></div>
             <div><dt>Readings</dt><dd>{pendingBackup.logs.length}</dd></div>
             <div><dt>Tasks</dt><dd>{pendingBackup.tasks.length}</dd></div>
             <div><dt>Seedling batches</dt><dd>{pendingBackup.seedling_batches.length}</dd></div>
+            <div><dt>Grow layouts</dt><dd>{pendingBackup.grow_areas.length}</dd></div>
+            <div><dt>Layout positions</dt><dd>{pendingBackup.grow_positions.length}</dd></div>
             <div>
               <dt>Exported</dt>
               <dd>{new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' }).format(new Date(pendingBackup.exported_at))}</dd>

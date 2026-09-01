@@ -68,11 +68,53 @@ export interface SeedlingBatch {
   updated_at: number
 }
 
+export type GrowAreaType = 'nft-channel' | 'seedling-tray' | 'grid'
+
+export interface GrowArea {
+  id: number
+  name: string
+  type: GrowAreaType
+  rows: number
+  columns: number
+  created_at: number
+  updated_at: number
+}
+
+/** A current, single-plant position in a user-defined grow area. */
+export interface GrowPosition {
+  id: number
+  area_id: number
+  row: number
+  column: number
+  position_code: string
+  crop_id: number | null
+  seedling_batch_id: number | null
+  assigned_at: number | null
+  updated_at: number
+}
+
+/** Append-only history of the user-recorded layout changes. */
+export interface LayoutActivity {
+  id: number
+  action: 'assigned' | 'cleared'
+  area_id: number
+  area_name: string
+  position_id: number
+  position_code: string
+  crop_id: number | null
+  seedling_batch_id: number | null
+  item_label: string
+  timestamp: number
+}
+
 export const db = new Dexie('HydroponicReservoirDB') as Dexie & {
   crops: EntityTable<Crop, 'id'>
   logs: EntityTable<ReservoirLog, 'id'>
   tasks: EntityTable<MaintenanceTask, 'id'>
   seedling_batches: EntityTable<SeedlingBatch, 'id'>
+  grow_areas: EntityTable<GrowArea, 'id'>
+  grow_positions: EntityTable<GrowPosition, 'id'>
+  layout_activity: EntityTable<LayoutActivity, 'id'>
 }
 
 db.version(1).stores({
@@ -132,3 +174,13 @@ db.version(4)
         batch.light_provided ??= false
       })
   })
+
+db.version(5).stores({
+  crops: '++id',
+  logs: '++id,timestamp',
+  tasks: '++id',
+  seedling_batches: '++id,crop_id,sown_at,status',
+  grow_areas: '++id,updated_at',
+  grow_positions: '++id,area_id,[area_id+position_code],crop_id,seedling_batch_id',
+  layout_activity: '++id,timestamp,area_id,position_id,crop_id,seedling_batch_id',
+})

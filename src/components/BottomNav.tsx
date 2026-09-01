@@ -1,6 +1,6 @@
-import { ChartNoAxesCombined, ClipboardPlus, Settings, Sprout } from 'lucide-react'
+import { ChartNoAxesCombined, ClipboardPlus, Grid2X2, Settings, Sprout } from 'lucide-react'
 
-export type AppScreen = 'dashboard' | 'seedlings' | 'log' | 'settings'
+export type AppScreen = 'dashboard' | 'seedlings' | 'layout' | 'log' | 'settings'
 
 interface BottomNavProps {
   active: AppScreen
@@ -10,6 +10,7 @@ interface BottomNavProps {
 const items = [
   { id: 'dashboard' as const, label: 'Dashboard', icon: ChartNoAxesCombined },
   { id: 'seedlings' as const, label: 'Seedlings', icon: Sprout },
+  { id: 'layout' as const, label: 'Layout', icon: Grid2X2 },
   { id: 'log' as const, label: 'Log', icon: ClipboardPlus },
   { id: 'settings' as const, label: 'Settings', icon: Settings },
 ]

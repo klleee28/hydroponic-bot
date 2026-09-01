@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { Grid2X2, History, Leaf, MapPin, Plus, Sprout, Trash2 } from 'lucide-react'
+import { Grid2X2, History, Leaf, MapPin, Plus, Trash2 } from 'lucide-react'
 import { Modal } from '../components/Modal'
 import { ScreenHeader } from '../components/ScreenHeader'
 import { db, type GrowArea, type GrowAreaType, type GrowPosition } from '../db/database'

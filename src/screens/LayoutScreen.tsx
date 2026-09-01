@@ -90,7 +90,10 @@ export default function LayoutScreen() {
   }
 
   const itemAge = (position: GrowPosition): string | null => {
-    const days = elapsedDays(position.assigned_at, now)
+    const batchStart = position.seedling_batch_id === null
+      ? null
+      : batchMap.get(position.seedling_batch_id)?.sown_at ?? null
+    const days = elapsedDays(batchStart ?? position.assigned_at, now)
     return days === null ? null : `Day ${days}`
   }
 

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { Grid2X2, History, Leaf, MapPin, Plus, Trash2 } from 'lucide-react'
 import { Modal } from '../components/Modal'
@@ -11,6 +11,7 @@ import {
   clearGrowPosition,
   createGrowArea,
   deleteGrowArea,
+  elapsedDays,
   isPositionOccupied,
 } from '../lib/layout'
 
@@ -45,6 +46,12 @@ export default function LayoutScreen() {
   const [assignment, setAssignment] = useState('')
   const [message, setMessage] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [now, setNow] = useState(() => Date.now())
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), 60_000)
+    return () => window.clearInterval(timer)
+  }, [])
 
   const cropMap = useMemo(
     () => new Map(crops.map((crop) => [crop.id, crop.name])),
@@ -80,6 +87,11 @@ export default function LayoutScreen() {
       return batch ? batchLabel(cropMap.get(batch.crop_id) ?? 'Deleted crop', batch.cultivar) : 'Deleted batch'
     }
     return 'Empty'
+  }
+
+  const itemAge = (position: GrowPosition): string | null => {
+    const days = elapsedDays(position.assigned_at, now)
+    return days === null ? null : `Day ${days}`
   }
 
   const openNewArea = () => {
@@ -340,6 +352,7 @@ export default function LayoutScreen() {
                     >
                       <small>{position.position_code}</small>
                       <strong>{isPositionOccupied(position) ? itemLabel(position) : 'Empty'}</strong>
+                      {isPositionOccupied(position) && itemAge(position) ? <em>{itemAge(position)}</em> : null}
                     </button>
                   ))}
                 </div>

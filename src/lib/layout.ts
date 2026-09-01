@@ -150,6 +150,12 @@ export function isPositionOccupied(position: GrowPosition): boolean {
   return position.crop_id !== null || position.seedling_batch_id !== null
 }
 
+/** Full calendar days since an item was recorded in a layout position. */
+export function elapsedDays(assignedAt: number | null, now: number = Date.now()): number | null {
+  if (assignedAt === null) return null
+  return Math.max(0, Math.floor((now - assignedAt) / 86_400_000))
+}
+
 export function areaTypeLabel(type: GrowAreaType): string {
   if (type === 'nft-channel') return 'NFT channel'
   if (type === 'seedling-tray') return 'Seedling tray'

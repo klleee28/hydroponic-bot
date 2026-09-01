@@ -1609,7 +1609,9 @@ textarea:focus-visible {
 }
 
 .layout-activity-list {
-  overflow: hidden;
+  max-height: 226px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   border: 1px solid var(--line-strong);
   border-radius: 10px;
   background: #fff;
@@ -1617,11 +1619,11 @@ textarea:focus-visible {
 
 .layout-activity-row {
   display: grid;
-  min-height: 59px;
+  min-height: 47px;
   grid-template-columns: 31px minmax(0, 1fr);
   align-items: center;
   gap: 8px;
-  padding: 8px 10px;
+  padding: 5px 9px;
   border-bottom: 1px solid var(--line);
 }
 
@@ -1630,8 +1632,8 @@ textarea:focus-visible {
 }
 
 .layout-activity-row__icon {
-  width: 28px;
-  height: 28px;
+  width: 24px;
+  height: 24px;
   background: var(--surface-subtle);
   color: var(--muted);
 }
@@ -1650,7 +1652,7 @@ textarea:focus-visible {
 .layout-activity-row strong {
   overflow: hidden;
   color: var(--ink);
-  font-size: 0.74rem;
+  font-size: 0.7rem;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -1658,7 +1660,7 @@ textarea:focus-visible {
 .layout-activity-row small {
   overflow: hidden;
   color: var(--muted);
-  font-size: 0.65rem;
+  font-size: 0.62rem;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -1730,6 +1732,13 @@ textarea:focus-visible {
   line-height: 1.25;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
+}
+
+.position-cell em {
+  color: var(--green);
+  font-size: 0.62rem;
+  font-style: normal;
+  font-weight: 760;
 }
 
 .layout-grid-help {

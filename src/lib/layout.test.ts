@@ -1,7 +1,7 @@
 import 'fake-indexeddb/auto'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { db } from '../db/database'
-import { assignGrowPosition, clearGrowPosition, createGrowArea } from './layout'
+import { assignGrowPosition, clearGrowPosition, createGrowArea, elapsedDays } from './layout'
 
 beforeEach(async () => {
   await db.delete()
@@ -40,5 +40,11 @@ describe('grow layout', () => {
     const position = await db.grow_positions.where('area_id').equals(areaId).first()
     if (!position) throw new Error('Expected a grow position')
     await expect(assignGrowPosition({ positionId: position.id })).rejects.toThrow('Choose one crop')
+  })
+
+  it('calculates elapsed position age without rounding up partial days', () => {
+    const day = 86_400_000
+    expect(elapsedDays(1_000, 1_000 + day * 3 + 3_600_000)).toBe(3)
+    expect(elapsedDays(null, 1_000)).toBeNull()
   })
 })
